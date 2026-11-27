@@ -1,11 +1,8 @@
 // Firestore security rules regression coverage for `plcs/{plcId}/comments`.
 // Pins the Wave-2 comment invariants (Decision 2.6, §3.5):
 //   - Any current PLC member can read comments.
-//   - Create: any member, `authorUid` == caller, doc id pinned, schema locked.
-//   - Update: identity/targeting/attribution/mentions immutable; the AUTHOR
-//     may edit body/editedAt and/or soft-delete; a NON-author may only flip
-//     `deletedAt` (tidy-up), never edit body.
-//   - Hard delete is server-only (clients soft-delete via `deletedAt`).
+//   - Create and update are server-only (plcNotesWriteV1): clients are refused.
+//   - Hard delete is server-only (GC).
 //   - Non-members cannot read or write.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
@@ -19,14 +16,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import {
-  setDoc,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { setDoc, getDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-comments-rules';
 const PLC_ID = 'p1';
@@ -133,156 +123,42 @@ describe('plcs/{plcId}/comments — read', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Create
+// Create and update: refused for clients (plcNotesWriteV1 writes them)
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/comments — create', () => {
-  it('a member can create a comment authored by themselves', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`),
-        validComment()
-      )
-    );
+describe('plcs/{plcId}/comments — client writes refused', () => {
+  const commentRef = (db: ReturnType<typeof asAuthor>) =>
+    doc(db, `plcs/${PLC_ID}/comments/${COMMENT_ID}`);
+
+  it('a member can no longer create a comment authored by themselves', async () => {
+    await assertFails(setDoc(commentRef(asAuthor()), validComment()));
   });
 
-  it('accepts serverTimestamp() createdAt (dual-accept)', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`),
-        validComment({ createdAt: serverTimestamp() })
-      )
-    );
+  it('a non-member cannot create a comment either', async () => {
+    await assertFails(setDoc(commentRef(asNonMember()), validComment()));
   });
 
-  it('rejects a comment whose authorUid is not the caller', async () => {
-    await assertFails(
-      setDoc(
-        doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`),
-        validComment({ authorUid: MEMBER2_UID })
-      )
-    );
-  });
+  describe('with an existing comment', () => {
+    beforeEach(() => seedComment());
 
-  it('rejects a comment whose id mismatches the doc id', async () => {
-    await assertFails(
-      setDoc(
-        doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`),
-        validComment({ id: 'different' })
-      )
-    );
-  });
+    it('the author can no longer edit the body or soft-delete', async () => {
+      await assertFails(
+        updateDoc(commentRef(asAuthor()), { body: 'edited', editedAt: 2000 })
+      );
+      await assertFails(updateDoc(commentRef(asAuthor()), { deletedAt: 2000 }));
+    });
 
-  it('rejects a targetType outside the closed union', async () => {
-    await assertFails(
-      setDoc(
-        doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`),
-        validComment({ targetType: 'wall' })
-      )
-    );
-  });
+    it('a non-author member can no longer soft-delete', async () => {
+      await assertFails(
+        updateDoc(commentRef(asMember2()), { deletedAt: 2000 })
+      );
+    });
 
-  it('rejects a non-list mentions field', async () => {
-    await assertFails(
-      setDoc(
-        doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`),
-        validComment({ mentions: 'member2' })
-      )
-    );
-  });
-
-  it('rejects an extra unknown field (schema lock-down)', async () => {
-    await assertFails(
-      setDoc(doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`), {
-        ...validComment(),
-        unexpected: 'x',
-      })
-    );
-  });
-
-  it('a non-member cannot create a comment', async () => {
-    await assertFails(
-      setDoc(
-        doc(asNonMember(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`),
-        validComment({ authorUid: NON_MEMBER_UID })
-      )
-    );
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Update
-// ---------------------------------------------------------------------------
-
-describe('plcs/{plcId}/comments — update', () => {
-  beforeEach(() => seedComment());
-
-  it('the author can edit body + editedAt', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`), {
-        body: 'Edited body',
-        editedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('the author can soft-delete via deletedAt', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`), {
-        deletedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('a non-author member can soft-delete (tidy-up posture)', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMember2(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`), {
-        deletedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('a non-author member cannot edit the body', async () => {
-    await assertFails(
-      updateDoc(doc(asMember2(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`), {
-        body: 'Hijacked',
-      })
-    );
-  });
-
-  it('rejects mutating authorUid (immutability)', async () => {
-    await assertFails(
-      setDoc(doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`), {
-        ...validComment(),
-        authorUid: MEMBER2_UID,
-      })
-    );
-  });
-
-  it('rejects mutating targetId (immutability)', async () => {
-    await assertFails(
-      setDoc(doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`), {
-        ...validComment(),
-        targetId: 'other-target',
-      })
-    );
-  });
-
-  it('rejects mutating mentions (immutability)', async () => {
-    await assertFails(
-      setDoc(doc(asAuthor(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`), {
-        ...validComment(),
-        mentions: [AUTHOR_UID, MEMBER2_UID],
-      })
-    );
-  });
-
-  it('a non-member cannot update a comment', async () => {
-    await assertFails(
-      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/comments/${COMMENT_ID}`), {
-        deletedAt: serverTimestamp(),
-      })
-    );
+    it('a non-member cannot update a comment', async () => {
+      await assertFails(
+        updateDoc(commentRef(asNonMember()), { deletedAt: 2000 })
+      );
+    });
   });
 });
 

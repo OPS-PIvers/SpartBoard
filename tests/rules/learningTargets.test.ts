@@ -158,9 +158,9 @@ describe('standards_catalog', () => {
 });
 
 describe('plcs/{plcId}/meta/learningTargets', () => {
-  it('member creates and updates; viewer and non-member cannot', async () => {
-    await assertSucceeds(setDoc(doc(asMember(), META_PATH), validList()));
-    await assertSucceeds(
+  it('no one can create or update it directly (plcSettingsV1 writes it)', async () => {
+    await assertFails(setDoc(doc(asMember(), META_PATH), validList()));
+    await assertFails(
       setDoc(
         doc(asMember(), META_PATH),
         validList({ targets: [target(1), target(2)], updatedAt: 2000 })
@@ -178,62 +178,21 @@ describe('plcs/{plcId}/meta/learningTargets', () => {
     await assertFails(getDoc(doc(asNonMember(), META_PATH)));
   });
 
-  it('only the learningTargets doc id is writable under meta', async () => {
+  it('no meta doc is writable by a client, whatever its id or shape', async () => {
     await assertFails(
       setDoc(doc(asMember(), `plcs/${PLC_ID}/meta/other`), validList())
     );
-  });
-
-  it('rejects extra keys, non-list targets, missing updatedAt', async () => {
     await assertFails(
       setDoc(doc(asMember(), META_PATH), validList({ extra: true }))
     );
-    await assertFails(
-      setDoc(doc(asMember(), META_PATH), validList({ targets: 'nope' }))
-    );
-    await assertFails(
-      setDoc(doc(asMember(), META_PATH), { targets: [target(1)] })
-    );
-  });
-
-  it('caps the list at 1,000 targets', async () => {
     const thousand = Array.from({ length: 1000 }, (_, i) => target(i));
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(asMember(), META_PATH), validList({ targets: thousand }))
     );
     await assertFails(
       setDoc(
         doc(asMember(), META_PATH),
-        validList({ targets: [...thousand, target(1000)] })
-      )
-    );
-  });
-
-  it('validates masteryCutoffs shape and range', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asMember(), META_PATH),
         validList({ masteryCutoffs: { proficient: 80, approaching: 60 } })
-      )
-    );
-    await assertFails(
-      setDoc(
-        doc(asMember(), META_PATH),
-        validList({ masteryCutoffs: { proficient: 60, approaching: 80 } })
-      )
-    );
-    await assertFails(
-      setDoc(
-        doc(asMember(), META_PATH),
-        validList({ masteryCutoffs: { proficient: 101, approaching: 60 } })
-      )
-    );
-    await assertFails(
-      setDoc(
-        doc(asMember(), META_PATH),
-        validList({
-          masteryCutoffs: { proficient: 80, approaching: 60, extra: 1 },
-        })
       )
     );
   });

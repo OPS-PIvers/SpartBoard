@@ -99,38 +99,17 @@ describe('plcs/{plcId}/noteDocs — read', () => {
   });
 });
 
-describe('plcs/{plcId}/noteDocs — create', () => {
-  it('a member can create it', async () => {
-    await assertSucceeds(setDoc(doc(asMember(), PATH), validNoteDoc()));
+describe('plcs/{plcId}/noteDocs — create refused (plcNotesWriteV1 writes it)', () => {
+  it('a member can no longer create it', async () => {
+    await assertFails(setDoc(doc(asMember(), PATH), validNoteDoc()));
   });
 
-  it('a non-member cannot create it', async () => {
+  it('a non-member cannot create it either', async () => {
     await assertFails(
       setDoc(
         doc(asNonMember(), PATH),
         validNoteDoc({ createdBy: NON_MEMBER_UID })
       )
-    );
-  });
-
-  it('createdBy must be the caller', async () => {
-    await assertFails(
-      setDoc(doc(asMember(), PATH), validNoteDoc({ createdBy: 'someone' }))
-    );
-  });
-
-  it('the url must be a Google Docs link', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMember(), PATH),
-        validNoteDoc({ url: 'https://evil.example.com/doc' })
-      )
-    );
-  });
-
-  it('extra fields are rejected', async () => {
-    await assertFails(
-      setDoc(doc(asMember(), PATH), validNoteDoc({ title: 'x' }))
     );
   });
 });

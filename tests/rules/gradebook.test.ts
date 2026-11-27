@@ -546,12 +546,20 @@ describe('personal settings and class state', () => {
 
 describe('PLC gradebook settings', () => {
   const path = `plcs/${PLC}/meta/gradebookSettings`;
-  it('lets the lead write and members read', async () => {
-    await assertSucceeds(
-      setDoc(doc(teacherDb(), path), { ...settingsBody, updatedBy: TEACHER })
-    );
+  it('lets members read, and refuses every client write (plcSettingsV1 writes it)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), {
+        ...settingsBody,
+        updatedBy: TEACHER,
+      });
+    });
+    await assertSucceeds(getDoc(doc(teacherDb(), path)));
     await assertSucceeds(getDoc(doc(otherDb(), path)));
     await assertFails(getDoc(doc(adminDb(), path)));
+    await assertFails(
+      setDoc(doc(teacherDb(), path), { ...settingsBody, updatedBy: TEACHER })
+    );
+    await assertFails(deleteDoc(doc(teacherDb(), path)));
   });
 
   it('refuses members who are not leads', async () => {

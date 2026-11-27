@@ -186,8 +186,6 @@ service cloud.firestore {
     function optInt(d, k) { return !(k in d) || d[k] is int; }
     function optBool(d, k) { return !(k in d) || d[k] is bool; }
     function optNumber(d, k) { return !(k in d) || d[k] is number; }
-    // A whole percent, 0 to 100 (goal baseline/current/target).
-    function optPct(d, k) { return !(k in d) || (d[k] is int && d[k] >= 0 && d[k] <= 100); }
     // The 200-character form used across the activity-wall item validators.
     function optShortString(d, k) {
       return !(k in d) || (d[k] is string && d[k].size() <= 200);
@@ -231,7 +229,6 @@ service cloud.firestore {
     function myCreatedBy() { return incoming().createdBy == authUid(); }
     function myAuthorUid() { return incoming().authorUid == authUid(); }
     function myUpdatedBy() { return incoming().updatedBy == authUid(); }
-    function mySharedBy() { return incoming().sharedBy == authUid(); }
     function myOrigAuthor() { return incoming().originalAuthor == authUid(); }
     function myOldStudent() { return pinUid() == existing().studentUid; }
     function myOldOwner() { return existing().ownerUid == authUid(); }
@@ -2428,197 +2425,12 @@ service cloud.firestore {
         );
     }
 
-    // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
-    // updatedAt dual-accept (timestamp || legacy int millis) during the
-    // serverTimestamp rollout (Decision 3.2). Centralized so tightening to
-    // timestamp-only is a one-line change.
-    function plcUpdatedAtOk() {
-      let v = request.resource.data.get('updatedAt', 0);
-      return v is timestamp || v is int;
-    }
-
     // Dual-accept (timestamp || int millis) for a named time field on a PLC
     // subcollection doc (createdAt / lastEditedAt / updatedAt) during the
     // serverTimestamp rollout. Only widens the accepted type, no new field.
     function plcSubTimeFieldOk(field) {
-      let v = request.resource.data.get(field, 0);
+      let v = incoming().get(field, 0);
       return v is timestamp || v is int;
-    }
-
-    // Soft-delete tombstone (`deletedAt`, Decision 3.1) well-formed: absent, null,
-    // timestamp, or legacy int millis. Carried by notes/todos/docs/quizzes/
-    // video_activities/comments. Hard-deletion (>30d) is server-side via
-    // gcPlcOrphans; these rules govern only the soft-delete/restore flips.
-    function plcSubDeletedAtOk() {
-      let v = request.resource.data.get('deletedAt', null);
-      return v == null || v is timestamp || v is int;
-    }
-
-    // Optional pickup run-settings on a PLC quiz header: each field may be
-    // absent; when present it must match the assignment-template shape.
-    function plcQuizRunSettingsOk() {
-      let d = request.resource.data;
-      return (!('sessionMode' in d) || d.sessionMode in ['teacher', 'auto', 'student'])
-        && optMap(d, 'sessionOptions')
-        && (!('attemptLimit' in d) || d.attemptLimit == null || d.attemptLimit is int)
-        && optString(d, 'quizId');
-    }
-
-    // Optional NULLABLE time field well-formed: absent, null, timestamp, or legacy
-    // int millis. Used for Common Assessment scheduling (opensAt / dueAt, §3.6),
-    // which unlike createdAt/updatedAt may be omitted or null.
-    function plcSubNullableTimeFieldOk(field) {
-      let v = request.resource.data.get(field, null);
-      return v == null || v is timestamp || v is int;
-    }
-
-    // Lead may switch between teacher group types; building groups and auto-roster are admin-only.
-    function plcLeadGroupFieldsOk() {
-      let oldType = resource.data.get('groupType', 'plc');
-      let newType = request.resource.data.get('groupType', 'plc');
-      return request.resource.data.get('autoRoster', false) == resource.data.get('autoRoster', false)
-        && (newType == oldType
-            || (oldType != 'building' && newType in ['plc', 'department', 'mentoring']));
-    }
-
-    // Tenancy field (orgId / buildingId, Decision 1.1) immutable-after-set: may be
-    // backfilled once (null → value) or rewritten to the same value, never to a
-    // different one — stops re-homing a PLC into another org's directory.
-    function plcTenancyImmutableAfterSet(field) {
-      let old = resource.data.get(field, null);
-      let knew = request.resource.data.get(field, null);
-      return old == null || knew == old;
-    }
-
-    // True iff a current member sets/clears `sharedSheetUrl` and nothing else (any
-    // member, not lead-only). Allowed: null -> string, string -> null. Rejected:
-    // string -> different string (would orphan another's cached sheet). Defense-in-depth
-    // on the transactional client setPlcSharedSheetUrl.
-    function isSettingPlcSharedSheetUrl() {
-      return (request.auth.uid in resource.data.memberUids)
-        // hasOnly + hasAny: diff is exactly sharedSheetUrl (+ updatedAt); hasAny
-        // blocks an updatedAt-only ping that resets mtime without setting the URL.
-        && changedOnly(['sharedSheetUrl', 'updatedAt'])
-        && changed(['sharedSheetUrl'])
-        && (
-             request.resource.data.sharedSheetUrl is string
-             || request.resource.data.sharedSheetUrl == null
-           )
-        && (
-             resource.data.get('sharedSheetUrl', null) == null
-             || request.resource.data.sharedSheetUrl == null
-             || request.resource.data.sharedSheetUrl == resource.data.sharedSheetUrl
-           )
-        && plcUpdatedAtOk();
-    }
-
-    // True iff the update is any current member toggling the dashboard `features`
-    // map and nothing else — shared config, not lead-only. Closed to features +
-    // updatedAt so it can't smuggle membership/leadership/sheet-URL changes.
-    function isUpdatingPlcFeatures() {
-      return (request.auth.uid in resource.data.memberUids)
-        && changedOnly(['features', 'updatedAt'])
-        && changed(['features'])
-        && request.resource.data.features is map
-        && plcUpdatedAtOk();
-    }
-
-    // True iff the update is any current member toggling the opt-in weekly-digest
-    // flag (`digestOptIn`, Decision 2.3) and nothing else (member-flippable like
-    // features, not lead-only). Closed to digestOptIn + updatedAt, must be bool.
-    // The email is sent server-side by plcWeeklyDigest, gated by the global
-    // plc-digest.enabled kill switch (default OFF).
-    // Lead or co-lead setting the PLC Home meeting cadence (a map or null) and nothing else.
-    function isUpdatingPlcMeetingCadence() {
-      return isPlcMembershipManager(resource.data)
-        && changedOnly(['meetingCadence', 'updatedAt'])
-        && optMap(request.resource.data, 'meetingCadence')
-        && plcUpdatedAtOk();
-    }
-
-    // Lead or co-lead renaming the High/Medium/Low norming levels (strings of 40 chars or fewer).
-    function normingLabelOk(m, k) {
-      return !(k in m) || (m[k] is string && m[k].size() <= 40);
-    }
-    function isUpdatingPlcNormingLabels() {
-      let m = request.resource.data.get('normingLevelLabels', {});
-      return isPlcMembershipManager(resource.data)
-        && changedOnly(['normingLevelLabels', 'updatedAt'])
-        && m.keys().hasOnly(['high', 'medium', 'low'])
-        && normingLabelOk(m, 'high') && normingLabelOk(m, 'medium') && normingLabelOk(m, 'low')
-        && plcUpdatedAtOk();
-    }
-
-    // Team layout map (TEAMS_REDESIGN T2): exactly pages, landing, cards and hero, with a known hero mode.
-    function plcLayoutShapeOk(l) {
-      return l is map
-        && l.keys().hasAll(['pages', 'landing', 'cards', 'hero'])
-        && l.keys().hasOnly(['pages', 'landing', 'cards', 'hero'])
-        && l.pages is list && l.pages.size() <= 20
-        && l.landing is string
-        && l.cards is list && l.cards.size() <= 30
-        && l.hero is map
-        && l.hero.get('mode', '') in ['default', 'pinned'];
-    }
-
-    // Lead or co-lead setting or clearing the team layout, with the section switches kept in step.
-    function isUpdatingPlcLayout() {
-      return isPlcMembershipManager(resource.data)
-        && changedOnly(['layout', 'features', 'updatedAt'])
-        && request.resource.data.get('features', {}) is map
-        && ('features' in request.resource.data || !('features' in resource.data))
-        && (!('layout' in request.resource.data) || plcLayoutShapeOk(request.resource.data.layout))
-        && plcUpdatedAtOk();
-    }
-
-    // Lead or co-lead setting or clearing the team's meeting-note template (T12) and nothing else.
-    function isUpdatingPlcMeetingNoteTemplate() {
-      return isPlcMembershipManager(resource.data)
-        && changedOnly(['meetingNoteTemplate', 'updatedAt'])
-        && (!('meetingNoteTemplate' in request.resource.data)
-          || (request.resource.data.meetingNoteTemplate is string
-            && request.resource.data.meetingNoteTemplate.size() <= 20000))
-        && plcUpdatedAtOk();
-    }
-
-    // Team calendar (TEAMS_REDESIGN T28): absent, or a Google Calendar embed URL.
-    function plcCalendarFieldOk() {
-      let v = request.resource.data.get('calendarEmbedUrl', null);
-      return v == null
-        || (v is string && v.size() <= 2000
-            && v.matches('^https://calendar[.]google[.]com/calendar/(u/[0-9]+/)?embed[?].+$'));
-    }
-
-    // Lead or co-lead setting or clearing the team calendar and nothing else.
-    function isUpdatingPlcCalendar() {
-      return isPlcMembershipManager(resource.data)
-        && changedOnly(['calendarEmbedUrl', 'updatedAt'])
-        && plcCalendarFieldOk()
-        && plcUpdatedAtOk();
-    }
-
-    function isUpdatingPlcDigestOptIn() {
-      return (request.auth.uid in resource.data.memberUids)
-        && changedOnly(['digestOptIn', 'updatedAt'])
-        && changed(['digestOptIn'])
-        && request.resource.data.digestOptIn is bool
-        && plcUpdatedAtOk();
-    }
-
-    // Membership changes run in plcMembershipV1 (Admin SDK). The one client write left is a
-    // manager tagging one non-lead member mentor or mentee (setMemberMentorRole, T29).
-    function isTaggingPlcMentor() {
-      let nd = request.resource.data;
-      let target = nd.get('roleChangeUid', '');
-      let oldMembers = resource.data.get('members', {});
-      return isPlcMembershipManager(resource.data)
-        && changedOnly(['members', 'roleChangeUid', 'updatedAt'])
-        && target != ''
-        && target != resource.data.get('leadUid', '')
-        && (target in oldMembers)
-        && nd.members.diff(oldMembers).affectedKeys().hasOnly([target])
-        && nd.members[target].diff(oldMembers[target]).affectedKeys().hasOnly(['mentorRole'])
-        && plcUpdatedAtOk();
     }
 
     // Slim, PII-free discovery mirror of each PLC root, server-written by
@@ -2662,92 +2474,17 @@ service cloud.firestore {
         && existing().flaggedByUid == authUid();
     }
 
-    function assignmentIndexKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail', 'title', 'sheetUrl', 'status',
-        'createdAt'
-      ]);
-    }
-    function plcMeetingKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'heldAt', 'facilitatorUid', 'attendeeUids', 'assessmentIds', 'agenda',
-        'decisions', 'actionItems', 'notesBody', 'status', 'createdBy', 'updatedAt',
-        'deletedAt'
-      ]);
-    }
-    function plcBankKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'title', 'questionCount', 'syncGroupId', 'targetIds', 'sharedBy',
-        'sharedByEmail', 'sharedByName', 'sharedAt', 'updatedAt', 'deletedAt'
-      ]);
-    }
-    function plcVideoKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId', 'sharedBy',
-        'sharedByEmail', 'sharedByName', 'sharedAt', 'updatedAt', 'deletedAt'
-      ]);
-    }
-    function plcRubricKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'title', 'description', 'criteria', 'createdAt', 'updatedAt', 'sharedBy',
-        'sharedByEmail', 'sharedByName', 'sharedAt', 'deletedAt'
-      ]);
-    }
-    function plcFlashcardSetKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'title', 'description', 'termLanguage', 'definitionLanguage', 'cards',
-        'createdAt', 'updatedAt', 'sharedBy', 'sharedByEmail', 'sharedByName', 'sharedAt',
-        'deletedAt', 'speak'
-      ]) && optMap(incoming(), 'speak');
-    }
-    function plcAssignmentKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'quizTitle', 'quizId', 'syncGroupId', 'sessionMode', 'sessionOptions',
-        'attemptLimit', 'sharedBy', 'sharedByEmail', 'sharedByName', 'sharedAt',
-        'updatedAt'
-      ]);
-    }
-    function plcNoteKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'title', 'body', 'kind', 'meetingId', 'actionItems', 'createdBy',
-        'createdAt', 'lastEditedBy', 'lastEditedAt', 'version', 'deletedAt', 'yState',
-        'blocks', 'meetingAt'
-      ]);
-    }
-    // Note blocks (TEAMS_REDESIGN T13, T14) cap at 100; meetingAt is a scheduled time in ms or null.
-    function plcNoteBlocksOk() {
-      return (optListMax('blocks', 100))
-        && (!('meetingAt' in incoming()) || incoming().meetingAt == null || isInt('meetingAt'));
-    }
-    // Live recording fields: at most 200 parts and 61 minutes of recorded time.
-    function plcRecordingLiveOk() {
-      return isList('parts')
-        && incoming().parts.size() <= 200
-        && isInt('durationMs')
-        && incoming().durationMs >= 0
-        && incoming().durationMs <= 3660000
-        && plcSubTimeFieldOk('lastHeartbeatAt');
-    }
-    function plcDocKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'title', 'url', 'createdBy', 'createdByName', 'createdAt', 'updatedAt',
-        'deletedAt', 'actionItems'
-      ]);
-    }
-    // A linked doc's action items: same 200-item cap as a note's.
-    function plcDocActionItemsOk() {
-      return optListMax('actionItems', 200);
-    }
-    function plcCommentKeysOk() {
-      return newKeys().hasOnly([
-        'id', 'targetType', 'targetId', 'authorUid', 'authorName', 'body', 'mentions',
-        'createdAt', 'editedAt', 'deletedAt'
-      ]);
-    }
-
     match /plcs/{plcId} {
       function plcEd() { return plcEditor(plcId); }
       function plcRd() { return plcReader(plcId); }
+      // A folder move (folderId, optional int updatedAt) or a list-order change (order) and nothing else.
+      function plcFolderMoveOk() {
+        let k = incoming().diff(existing()).affectedKeys();
+        return (k.hasOnly(['folderId', 'updatedAt'])
+            && optNullStr('folderId')
+            && (!('updatedAt' in k) || isInt('updatedAt')))
+          || (k.hasOnly(['order']) && isInt('order'));
+      }
       // Members + same-org admins only. The root doc carries member PII
       // (emails/names), so it's NOT exposed to same-org peers — discovery reads
       // the PII-free /plcIndex mirror instead. The gate is the memberUids index alone:
@@ -2773,144 +2510,9 @@ service cloud.firestore {
           || isSuperAdmin()
         );
 
-      // The creating teacher is the lead and only initial member: members map
-      // carries exactly that uid at role 'lead' (active), mirrored by
-      // memberUids == [uid] and leadUid == uid. Optional tenancy (orgId/
-      // buildingId) null or string; createdAt/updatedAt dual-accept timestamp||int.
-      // Only district staff start a PLC; anonymous, student and unverified accounts can't lead one.
-      allow create: if isDistrictStaff()
-        && authUid() == incoming().leadUid
-        // An id that was ever used (creator record or delete tombstone) is never re-created.
-        && !dbExists('plcCreators', plcId)
-        && incoming().memberUids == [authUid()]
-        && incoming().members.keys().hasOnly([authUid()])
-        && incoming().members.keys().size() == 1
-        && incoming().members[authUid()].role == 'lead'
-        && incoming().members[authUid()].status == 'active'
-        && incoming().members[authUid()].uid == authUid()
-        // Teachers pick plc, department or mentoring; building groups and auto-roster are admin-made.
-        && incoming().get('groupType', 'plc') in ['plc', 'department', 'mentoring']
-        && !('autoRoster' in incoming())
-        // A redesign-created team may start with a frozen layout (TEAMS_REDESIGN T3).
-        && (!('layout' in incoming()) || plcLayoutShapeOk(incoming().layout))
-        && (
-             !('orgId' in incoming())
-             || incoming().orgId == null
-             || isStr('orgId')
-           )
-        && (
-             !('buildingId' in incoming())
-             || incoming().buildingId == null
-             || isStr('buildingId')
-           )
-        && (
-             incoming().get('createdAt', 0) is timestamp
-             || incoming().get('createdAt', 0) is int
-           )
-        && (
-             incoming().get('updatedAt', 0) is timestamp
-             || incoming().get('updatedAt', 0) is int
-           );
+      // Create, settings updates and delete run in plcSettingsV1 (Admin SDK); clients only read the root.
 
-      // Lead can rename or backfill tenancy but never change membership or leadUid; joins,
-      // leaves, removals, roles and lead moves run in plcMembershipV1 (Admin SDK). Tenancy
-      // (orgId/buildingId) is immutable-after-set. Each other branch is one disjoint shape.
-      // shorthands: off (PLC update OR chain runs close to the 1,000-expression limit)
-      allow update: if request.auth != null && viewAsOk() && notDeactivated() && (
-        (
-          request.auth.uid == resource.data.leadUid
-          && !request.resource.data.diff(resource.data).affectedKeys()
-               .hasAny(['leadUid', 'members', 'memberUids', 'memberEmails'])
-          && plcUpdatedAtOk()
-          && plcTenancyImmutableAfterSet('orgId')
-          && plcTenancyImmutableAfterSet('buildingId')
-          && plcLeadGroupFieldsOk()
-          && plcCalendarFieldOk()
-        )
-        || (request.resource.data.get('roleChangeUid', '') != '' && isTaggingPlcMentor())
-        || isSettingPlcSharedSheetUrl()
-        || isUpdatingPlcFeatures()
-        || isUpdatingPlcDigestOptIn()
-        || isUpdatingPlcMeetingCadence()
-        || isUpdatingPlcNormingLabels()
-        || (
-          request.resource.data.get('layout', null) != resource.data.get('layout', null)
-          && isUpdatingPlcLayout()
-        )
-        || (
-          request.resource.data.get('meetingNoteTemplate', null) != resource.data.get('meetingNoteTemplate', null)
-          && isUpdatingPlcMeetingNoteTemplate()
-        )
-        || (
-          request.resource.data.get('calendarEmbedUrl', null) != resource.data.get('calendarEmbedUrl', null)
-          && isUpdatingPlcCalendar()
-        )
-      );
-
-      // The lead can dissolve the PLC; an in-org SITE ADMIN can also dissolve an
-      // abandoned PLC for recovery (Decision 3.4), gated to a PLC whose orgId
-      // matches an org the admin belongs to.
-      // shorthands: on
-      allow delete: if signedIn() && notDeactivated()
-        && (
-          authUid() == existing().leadUid
-          || (
-            isAdmin()
-            && existing().get('orgId', null) is string
-            && isOrgMember(existing().orgId)
-          )
-        );
-
-      // Index of PLC-mode assignments authored by any member — a small snapshot
-      // (title, ownerUid, sheetUrl, createdAt) written by the author when their
-      // quiz_assignments doc opts into PLC mode. Subcollection so member-gated
-      // reads stay one-line.
-      match /assignment_index/{assignmentId} {
-        // Any current member can read the index — the dashboard renders
-        // the same list for everyone in the PLC.
-
-        // Author-only writes; doc id pinned to the source assignment id for join-back.
-        // Author must be a current PLC member. hasOnly([...]) locks the shape. sheetUrl is
-        // optional ('' when the assignment has no sheet); when set it is pinned to the
-        // trusted Google Sheets host/path (rendered as a clickable link, so an arbitrary
-        // string is a phishing vector). create/update are split so update can
-        // check the *existing* ownerUid and pin id/ownerUid/createdAt.
-        allow create: if signedIn()
-          && authUid() == incoming().ownerUid
-          && plcMember(plcId)
-          && assignmentId == incoming().id
-          && assignmentIndexKeysOk()
-          && incoming().kind in ['quiz', 'video-activity']
-          && incoming().status in ['active', 'paused', 'inactive']
-          && (
-               incoming().sheetUrl == ''
-               || incoming().sheetUrl.matches('^https://docs[.]google[.]com/spreadsheets/.*$')
-             );
-
-        allow update: if signedIn()
-          // Caller must be the *existing* owner — prevents takeover by a
-          // different member rewriting `ownerUid` to themselves.
-          && authUid() == existing().ownerUid
-          && plcMember(plcId)
-          // Identity fields immutable; mutable: status (mirrored on pause/
-          // deactivate/reopen) + legacy fields. Shape closed via hasOnly([...]).
-          && sameId()
-          && unchanged('ownerUid')
-          && unchanged('createdAt')
-          && assignmentId == incoming().id
-          && assignmentIndexKeysOk()
-          && incoming().kind in ['quiz', 'video-activity']
-          && incoming().status in ['active', 'paused', 'inactive']
-          && (
-               incoming().sheetUrl == ''
-               || incoming().sheetUrl.matches('^https://docs[.]google[.]com/spreadsheets/.*$')
-             );
-
-        // Authors clean up their own entries. No lead-override — leads ask the
-        // owner to sweep stale entries.
-        allow delete: if signedIn()
-          && authUid() == existing().ownerUid;
-      }
+      // assignment_index: reads in the shared match /{coll}/{collDocId}; writes run in plcContentWriteV1.
 
       // Anonymized norming copies; written only by setPlcNormingFlagV1.
       // norming: rules are in the shared match /{coll}/{collDocId} under its parent path.
@@ -2934,46 +2536,13 @@ service cloud.firestore {
         function updManager() {
           return isPlcMembershipManager(dbGet('plcs', plcId).data);
         }
-        function updShapeOk(d) {
-          return d.keys().hasOnly(['title', 'body', 'linkUrl', 'attachment', 'requiresAck',
-                 'inDigest', 'pinned', 'reactions', 'authorUid', 'authorName', 'createdAt', 'updatedAt'])
-            && d.title is string && d.title.size() > 0 && d.title.size() <= 200
-            && d.body is string && d.body.size() <= 5000
-            && (!('linkUrl' in d) || (d.linkUrl is string && d.linkUrl.size() <= 2000 && d.linkUrl.matches('^https://.+$')))
-            && (!('attachment' in d) || (
-                 d.attachment is map
-                 && d.attachment.keys().hasOnly(['name', 'url'])
-                 && d.attachment.name is string && d.attachment.name.size() <= 200
-                 && d.attachment.url is string && d.attachment.url.size() <= 2000
-                 && d.attachment.url.matches('^https://(drive|docs)[.]google[.]com/.+$')))
-            && d.requiresAck is bool && d.inDigest is bool && d.pinned is bool
-            && d.reactions is map
-            && d.authorName is string && d.authorName.size() <= 200
-            && d.updatedAt == request.time;
-        }
         allow read: if plcRd();
-        allow create: if signedIn()
-          && updManager()
-          && myAuthorUid()
-          && incoming().createdAt == request.time
-          && incoming().reactions.size() == 0
-          && updShapeOk(incoming());
-        allow update: if signedIn() && (
-          (
-            changedOnly(['reactions'])
-            && plcMember(plcId)
-            && incoming().reactions.diff(existing().reactions).affectedKeys().hasOnly([authUid()])
-            && incoming().reactions.get(authUid(), true) == true
-          )
-          || (
-            updManager()
-            && unchanged('authorUid')
-            && unchanged('createdAt')
-            && unchanged('reactions')
-            && updShapeOk(incoming())
-          )
-        );
-        allow delete: if signedIn() && updManager();
+        // Posts, edits and deletes run in plcTeamItemsV1; members toggle only their own reaction here.
+        allow update: if signedIn()
+          && changedOnly(['reactions'])
+          && plcMember(plcId)
+          && incoming().reactions.diff(existing().reactions).affectedKeys().hasOnly([authUid()])
+          && incoming().reactions.get(authUid(), true) == true;
 
         // One ack per member, doc id = their uid; leads and co-leads read the full list.
         match /acks/{ackUid} {
@@ -2989,95 +2558,10 @@ service cloud.firestore {
         }
       }
 
-      // PLC Common Assessments (Decision 4.0c) - a quiz/VA whose pooled results aggregate
-      // to one canonical id. PLC-owned: any non-viewer member authors/edits/soft-deletes.
-      // Identity (id), authorship, kind, and the syncGroupId pointer are immutable
-      // post-create so a stale mirror can't retarget the sync group. Shape locked via
-      // hasOnly([...]); time fields dual-accept int||timestamp||null.
+      // assessments: reads in the shared match /{coll}/{collDocId}.
       match /assessments/{assessmentId} {
-
-        // Create: any non-viewer member (plcCanEditContent — viewers denied), doc
-        // id pinned, createdBy == caller.
-        allow create: if plcEd()
-          && newKeys().hasOnly([
-               'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
-               'opensAt', 'dueAt', 'status',
-               'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
-               'sourceQuizId', 'dirtyAt', 'folderId'
-             ])
-          && incoming().id == assessmentId
-          && myCreatedBy()
-          && isStr('title')
-          && incoming().kind in ['quiz', 'video-activity']
-          && isStr('syncGroupId')
-          // Non-empty syncGroupId (the aggregation pipeline keys on it);
-          // defense-in-depth, the client also rejects empty.
-          && incoming().syncGroupId.size() > 0
-          && incoming().status in [
-               'planning', 'active', 'reviewing', 'closed'
-             ]
-          && (
-               !('unitLabel' in incoming())
-               || isStr('unitLabel')
-             )
-          && plcSubNullableTimeFieldOk('opensAt')
-          && plcSubNullableTimeFieldOk('dueAt')
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt')
-          // sourceQuizId: first quiz that auto-created this assessment. dirtyAt is
-          // owned by the markPlcAssessmentDirty function (Admin SDK); clients may
-          // only write it as null/absent.
-          && (
-               !('sourceQuizId' in incoming())
-               || isStr('sourceQuizId')
-             )
-          && (
-               optNullStr('folderId')
-             )
-          && incoming().get('dirtyAt', null) == null;
-
-        // Update: non-viewer member mutates working fields (title/unitLabel/
-        // opensAt/dueAt/status/updatedAt) or soft-deletes via deletedAt. Identity,
-        // createdBy/createdAt, kind, syncGroupId immutable; viewers denied.
-        allow update: if plcEd()
-          && newKeys().hasOnly([
-               'id', 'title', 'kind', 'syncGroupId', 'unitLabel',
-               'opensAt', 'dueAt', 'status',
-               'createdBy', 'createdAt', 'updatedAt', 'deletedAt',
-               'sourceQuizId', 'dirtyAt', 'folderId', 'order'
-             ])
-          && sameId()
-          && unchanged('createdBy')
-          && unchanged('createdAt')
-          && unchanged('kind')
-          && unchanged('syncGroupId')
-          && isStr('title')
-          && incoming().status in [
-               'planning', 'active', 'reviewing', 'closed'
-             ]
-          && (
-               !('unitLabel' in incoming())
-               || isStr('unitLabel')
-             )
-          && plcSubNullableTimeFieldOk('opensAt')
-          && plcSubNullableTimeFieldOk('dueAt')
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('updatedAt')
-          && (
-               optNullStr('folderId')
-             )
-          && optInt(incoming(), 'order')
-          // Server-written dirtyAt and the sourceQuizId pointer must round-trip
-          // unchanged: clients can neither forge nor clear them.
-          && incoming().get('sourceQuizId', null)
-               == existing().get('sourceQuizId', null)
-          && incoming().get('dirtyAt', null)
-               == existing().get('dirtyAt', null);
-
-        // Non-viewer member can hard-delete (PLC-owned model). Soft-delete via
-        // deletedAt is typical; the orphaned aggregates/{assessmentId} doc is
-        // swept by gcPlcOrphans. Viewers denied via plcCanEditContent.
+        // Folder moves and list order stay direct (usePlcFolders, useFolderTree); every other write runs in plcContentWriteV1.
+        allow update: if plcEd() && plcFolderMoveOk();
       }
 
       // PLC Meeting records (Decisions 4.0/4.0b) - the archived, exportable record from
@@ -3087,255 +2571,24 @@ service cloud.firestore {
       // The `decisions`/`actionItems` lists carry opaque interior maps whose shape varies;
       // CEL can't `.every()` over a list, so the rule validates the list TYPE and leans on
       // the client parser - blast radius is one membership-gated PLC's own record.
-      match /meetings/{meetingId} {
-
-        // Create: any non-viewer member, doc id pinned, createdBy must equal the
-        // caller. A viewer (Decision 3.2) is denied via plcCanEditContent.
-        allow create: if plcEd()
-          && plcMeetingKeysOk()
-          && incoming().id == meetingId
-          && myCreatedBy()
-          && isStr('facilitatorUid')
-          && isList('attendeeUids')
-          && isList('assessmentIds')
-          && isList('decisions')
-          && isList('actionItems')
-          && (
-               !('agenda' in incoming())
-               || isStr('agenda')
-             )
-          && (
-               !('notesBody' in incoming())
-               || isStr('notesBody')
-             )
-          && incoming().status in ['in-progress', 'completed']
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('heldAt')
-          && plcSubTimeFieldOk('updatedAt');
-
-        // Update: non-viewer member mutates working fields or soft-deletes via
-        // deletedAt. id/createdBy/heldAt/facilitatorUid immutable; viewers denied.
-        allow update: if plcEd()
-          && plcMeetingKeysOk()
-          && sameId()
-          && unchanged('createdBy')
-          && unchanged('heldAt')
-          && unchanged('facilitatorUid')
-          && isList('attendeeUids')
-          && isList('assessmentIds')
-          && isList('decisions')
-          && isList('actionItems')
-          && (
-               !('agenda' in incoming())
-               || isStr('agenda')
-             )
-          && (
-               !('notesBody' in incoming())
-               || isStr('notesBody')
-             )
-          && incoming().status in ['in-progress', 'completed']
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('updatedAt');
-
-        // Non-viewer member can hard-delete (PLC-owned); soft-delete via deletedAt
-        // is typical, tombstone GC is gcPlcOrphans. Viewers denied.
-      }
+      // meetings: reads and deletes in the shared match /{coll}/{collDocId}; writes run in plcNotesWriteV1.
 
       // My Groups goals: members read; non-viewer members write. A practice is an
       // opaque map (routineId or free text) validated by the client parser.
-      match /goals/{goalId} {
+      // goals: reads in the shared match /{coll}/{collDocId}; writes run in plcTeamItemsV1.
 
-        allow create, update: if plcEd()
-          && newKeys().hasOnly([
-               'id', 'title', 'measure', 'practices', 'order',
-               'baseline', 'current', 'target',
-               'dueDate', 'students', 'outcome',
-               'createdBy', 'createdAt', 'updatedAt'
-             ])
-          && incoming().id == goalId
-          && optPct(incoming(), 'baseline')
-          && optPct(incoming(), 'current')
-          && optPct(incoming(), 'target')
-          && isStr('title')
-          && incoming().title.size() <= 600
-          && (!('measure' in incoming()) || isStr('measure'))
-          && (!('dueDate' in incoming())
-                || (isStr('dueDate') && incoming().dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
-          && optShortString(incoming(), 'students')
-          && (!('outcome' in incoming())
-                || (isStr('outcome') && incoming().outcome.size() <= 300))
-          && isList('practices')
-          && incoming().practices.size() <= 20
-          && optInt(incoming(), 'order')
-          && isStr('createdBy')
-          && (noDoc()
-                ? myCreatedBy()
-                : unchanged('createdBy') && unchanged('createdAt'))
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt');
-
-      }
-
-      // PLC Quiz Library (Phase 2). Lightweight headers pointing at canonical
-      // /synced_quizzes/{groupId} docs (questions live there). Any member shares /
-      // mirror-edits (title/questionCount) / unshares; orphan policy "PLC copy
-      // stays". Shape locked via hasOnly([...]); identity + attribution
-      // (id/syncGroupId/sharedBy*/sharedAt) immutable post-create.
+      // quizzes: reads in the shared match /{coll}/{collDocId}.
       match /quizzes/{plcQuizId} {
-
-        // Create: any non-viewer member (plcCanEditContent), doc id pinned,
-        // sharedBy == caller. Questions live in the synced group. Optional
-        // deletedAt tombstone (Decision 3.1); shape locked via hasOnly([...]).
-        // Optional run-settings (sessionMode/sessionOptions/attemptLimit) are
-        // the pickup defaults a teammate inherits; mirrored after each publish.
-        allow create: if plcEd()
-          && newKeys().hasOnly([
-               'id', 'title', 'questionCount', 'syncGroupId',
-               'sharedBy', 'sharedByEmail', 'sharedByName',
-               'sharedAt', 'updatedAt', 'deletedAt',
-               'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId',
-               'folderId', 'archived'
-             ])
-          && plcQuizRunSettingsOk()
-          && optBool(incoming(), 'archived')
-          && plcQuizId == incoming().id
-          && mySharedBy()
-          && isStr('title')
-          && isInt('questionCount')
-          && incoming().questionCount >= 0
-          && isStr('syncGroupId')
-          // Non-empty syncGroupId (defense-in-depth; the CF also rejects empty).
-          && incoming().syncGroupId.size() > 0
-          && isStr('sharedByEmail')
-          && isStr('sharedByName')
-          && isInt('sharedAt')
-          && isInt('updatedAt')
-          && (
-               optNullStr('folderId')
-             )
-          && plcSubDeletedAtOk();
-
-        // Update: non-viewer member mirrors title/questionCount/run-settings/
-        // updatedAt or soft-deletes via deletedAt. Identity + attribution
-        // immutable; viewers denied.
-        allow update: if plcEd()
-          && newKeys().hasOnly([
-               'id', 'title', 'questionCount', 'syncGroupId',
-               'sharedBy', 'sharedByEmail', 'sharedByName',
-               'sharedAt', 'updatedAt', 'deletedAt',
-               'sessionMode', 'sessionOptions', 'attemptLimit', 'quizId',
-               'folderId', 'archived', 'order'
-             ])
-          && plcQuizRunSettingsOk()
-          && optBool(incoming(), 'archived')
-          && optInt(incoming(), 'order')
-          && sameId()
-          && unchanged('syncGroupId')
-          && unchanged('sharedBy')
-          && unchanged('sharedByEmail')
-          && unchanged('sharedByName')
-          && unchanged('sharedAt')
-          && isStr('title')
-          && isInt('questionCount')
-          && incoming().questionCount >= 0
-          && isInt('updatedAt')
-          && (
-               optNullStr('folderId')
-             )
-          && plcSubDeletedAtOk();
-
-        // Non-viewer member can unshare (PLC-owned model); viewers denied.
+        // Folder moves and list order stay direct (usePlcFolders, useFolderTree); every other write runs in plcContentWriteV1.
+        allow update: if plcEd() && plcFolderMoveOk();
       }
 
       // PLC folders (PLC_ASSESSMENT_DATA §3.4): shared tree for the Assessments list.
       // PLC learning targets: one array doc (`learningTargets`) per PLC, edited by
       // any non-viewer member. Cap 1,000 targets; `masteryCutoffs` is PLC-only.
-      // Interior target maps are validated by the client; blast radius is one PLC.
-      match /meta/{metaId} {
-        allow create, update: if signedIn()
-          && metaId == 'learningTargets'
-          && plcCanEditContent(plcId)
-          && newKeys().hasOnly([
-               'targets', 'masteryCutoffs', 'updatedAt'
-             ])
-          && isList('targets')
-          && incoming().targets.size() <= 1000
-          && isInt('updatedAt')
-          && (
-               !('masteryCutoffs' in incoming())
-               || (
-                    incoming().masteryCutoffs.keys().hasOnly([
-                      'proficient', 'approaching'
-                    ])
-                    && incoming().masteryCutoffs.proficient is int
-                    && incoming().masteryCutoffs.approaching is int
-                    && incoming().masteryCutoffs.proficient >= 0
-                    && incoming().masteryCutoffs.proficient <= 100
-                    && incoming().masteryCutoffs.approaching >= 0
-                    && incoming().masteryCutoffs.approaching
-                         <= incoming().masteryCutoffs.proficient
-                  )
-             );
-        // Gradebook shared configuration (GRADEBOOK.md D16): leads and co-leads only.
-        allow create, update: if liveStaffSignedIn()
-          && metaId == 'gradebookSettings'
-          && isPlcMembershipManager(dbGet('plcs', plcId).data)
-          && gbSettingsOk(incoming(), ['updatedBy'])
-          && incoming().updatedBy == authUid();
-        allow delete: if liveStaffSignedIn()
-          && metaId == 'gradebookSettings'
-          && isPlcMembershipManager(dbGet('plcs', plcId).data);
-      }
+      // meta: reads in the shared match /{coll}/{collDocId}; learning targets and gradebook settings write through plcSettingsV1.
 
-      // PLC question-bank headers (plan §5): pointer at /synced_question_banks/{groupId}.
-      // Any non-viewer member shares; only the sharer or a lead/co-lead changes or
-      // removes the row. Identity + attribution immutable post-create.
-      match /question_banks/{entryId} {
-
-        allow create: if plcEd()
-          && plcBankKeysOk()
-          && entryId == incoming().id
-          && mySharedBy()
-          && isStr('title')
-          && isInt('questionCount')
-          && incoming().questionCount >= 0
-          && isStr('syncGroupId')
-          && incoming().syncGroupId.size() > 0
-          && isList('targetIds')
-          && isStr('sharedByEmail')
-          && isStr('sharedByName')
-          && isInt('sharedAt')
-          && isInt('updatedAt')
-          && plcSubDeletedAtOk();
-
-        allow update: if plcEd()
-          && (
-               existing().sharedBy == authUid()
-               || isPlcMembershipManager(
-                    dbGet('plcs', plcId).data
-                  )
-             )
-          && plcBankKeysOk()
-          && sameId()
-          && unchanged('syncGroupId')
-          && unchanged('sharedBy')
-          && unchanged('sharedByEmail')
-          && unchanged('sharedByName')
-          && unchanged('sharedAt')
-          && isStr('title')
-          && isInt('questionCount')
-          && isList('targetIds')
-          && isInt('updatedAt')
-          && plcSubDeletedAtOk();
-
-        allow delete: if plcEd()
-          && (
-               existing().sharedBy == authUid()
-               || isPlcMembershipManager(
-                    dbGet('plcs', plcId).data
-                  )
-             );
-      }
+      // question_banks: reads in the shared match /{coll}/{collDocId}; writes run in plcContentWriteV1.
 
       match /folders/{folderId} {
         allow create, update: if plcEd()
@@ -3357,298 +2610,20 @@ service cloud.firestore {
           && isInt('updatedAt');
       }
 
-      // PLC Video Activity Library (Phase 4). Mirrors the quiz library —
-      // headers pointing at /synced_video_activities/{groupId}. Any member
-      // shares/mirror-edits/unshares; orphan policy "PLC copy stays". Extra field
-      // vs quizzes: youtubeUrl (tile thumbnail); other invariants identical.
-      match /video_activities/{plcVideoActivityId} {
+      // video_activities: reads in the shared match /{coll}/{collDocId}; writes run in plcContentWriteV1.
 
-        // Create: non-viewer member (plcCanEditContent), doc id pinned, sharedBy ==
-        // caller. Questions live in the synced group. Optional deletedAt tombstone;
-        // shape locked via hasOnly([...]).
-        allow create: if plcEd()
-          && plcVideoKeysOk()
-          && plcVideoActivityId == incoming().id
-          && mySharedBy()
-          && isStr('title')
-          && isStr('youtubeUrl')
-          && isInt('questionCount')
-          && incoming().questionCount >= 0
-          && isStr('syncGroupId')
-          // Non-empty syncGroupId (defense-in-depth; the CF also rejects empty).
-          && incoming().syncGroupId.size() > 0
-          && isStr('sharedByEmail')
-          && isStr('sharedByName')
-          && isInt('sharedAt')
-          && isInt('updatedAt')
-          && plcSubDeletedAtOk();
+      // rubrics: reads in the shared match /{coll}/{collDocId}; writes run in plcContentWriteV1.
 
-        // Update: non-viewer member mirrors title/questionCount/youtubeUrl/
-        // updatedAt or soft-deletes via deletedAt. Identity + attribution
-        // immutable; viewers denied.
-        allow update: if plcEd()
-          && plcVideoKeysOk()
-          && sameId()
-          && unchanged('syncGroupId')
-          && unchanged('sharedBy')
-          && unchanged('sharedByEmail')
-          && unchanged('sharedByName')
-          && unchanged('sharedAt')
-          && isStr('title')
-          && isStr('youtubeUrl')
-          && isInt('questionCount')
-          && incoming().questionCount >= 0
-          && isInt('updatedAt')
-          && plcSubDeletedAtOk();
+      // flashcard_sets: reads in the shared match /{coll}/{collDocId}; writes run in plcContentWriteV1.
 
-        // Non-viewer member can unshare (PLC-owned model); viewers denied.
-      }
+      // flashcard_results: reads in the shared match /{coll}/{collDocId}; writes run in plcContentWriteV1.
 
-      // PLC Rubric Library (M12 Phase 3-I). The full rubric payload is inlined (rubrics
-      // are small; no synced-group indirection). Posture mirrors the Quiz Library: any
-      // non-viewer member shares/mirror-edits/unshares; identity + attribution immutable
-      // post-create. `criteria` is a list of complex objects CEL can't deep-validate;
-      // shape locked via hasOnly([...]), interior validation is client-enforced.
-      match /rubrics/{plcRubricId} {
-
-        allow create: if plcEd()
-          && plcRubricKeysOk()
-          && plcRubricId == incoming().id
-          && mySharedBy()
-          && isStr('title')
-          && isList('criteria')
-          && isStr('sharedByEmail')
-          && isStr('sharedByName')
-          && isInt('sharedAt')
-          && isInt('createdAt')
-          && isInt('updatedAt')
-          && plcSubDeletedAtOk();
-
-        // Update: non-viewer member mirror-edits content fields or soft-deletes
-        // via deletedAt. Identity + attribution immutable; viewers denied.
-        allow update: if plcEd()
-          && plcRubricKeysOk()
-          && sameId()
-          && unchanged('sharedBy')
-          && unchanged('sharedByEmail')
-          && unchanged('sharedByName')
-          && unchanged('sharedAt')
-          && unchanged('createdAt')
-          && isStr('title')
-          && isList('criteria')
-          && isInt('updatedAt')
-          && plcSubDeletedAtOk();
-
-        // Non-viewer member can unshare (PLC-owned model); viewers denied.
-      }
-
-      // PLC Flashcards library. Inline payload like rubrics: any non-viewer member
-      // shares/unshares; identity + attribution immutable post-create.
-      match /flashcard_sets/{plcSetId} {
-
-        allow create: if plcEd()
-          && plcFlashcardSetKeysOk()
-          && plcSetId == incoming().id
-          && mySharedBy()
-          && isStr('title')
-          && isStr('termLanguage')
-          && isStr('definitionLanguage')
-          && isList('cards')
-          && incoming().cards.size() <= 1000
-          && isStr('sharedByEmail')
-          && isStr('sharedByName')
-          && isInt('sharedAt')
-          && isInt('createdAt')
-          && isInt('updatedAt')
-          && plcSubDeletedAtOk();
-
-        allow update: if plcEd()
-          && plcFlashcardSetKeysOk()
-          && sameId()
-          && unchanged('sharedBy')
-          && unchanged('sharedByEmail')
-          && unchanged('sharedByName')
-          && unchanged('sharedAt')
-          && unchanged('createdAt')
-          && isStr('title')
-          && isStr('termLanguage')
-          && isStr('definitionLanguage')
-          && isList('cards')
-          && incoming().cards.size() <= 1000
-          && isInt('updatedAt')
-          && plcSubDeletedAtOk();
-
-      }
-
-      // Class-level flashcard results a teacher shares with the PLC. No student ids;
-      // only the sharing teacher writes, refreshes or removes their own summary.
-      match /flashcard_results/{plcResultId} {
-
-        allow create, update: if plcEd()
-          && newKeys().hasOnly([
-               'id', 'setId', 'setTitle', 'kind', 'classLabel',
-               'students', 'completed', 'averagePercent', 'cards',
-               'sharedBy', 'sharedByEmail', 'sharedByName',
-               'sharedAt', 'updatedAt'
-             ])
-          && plcResultId == incoming().id
-          && mySharedBy()
-          && (request.method == 'create' || existing().sharedBy == authUid())
-          && isStr('setId')
-          && isStr('setTitle')
-          && incoming().kind in ['check', 'study']
-          && isStr('classLabel')
-          && isInt('students')
-          && isInt('completed')
-          && isNumber('averagePercent')
-          && isList('cards')
-          && incoming().cards.size() <= 1000
-          && isStr('sharedByEmail')
-          && isStr('sharedByName')
-          && isInt('sharedAt')
-          && isInt('updatedAt');
-
-        allow delete: if signedIn()
-          && existing().sharedBy == authUid();
-      }
-
-      // PLC-authored Assignments (Phase 3). Templates any member can pick up onto
-      // their board, pointing at a canonical synced_quizzes/{groupId} (content
-      // lives there). Posture mirrors the Quiz Library — any member authors /
-      // mirror-updates / unshares; identity + attribution immutable. Orphan
-      // policy: deleting a template doesn't cascade to already-imported personal
-      // assignments.
-      match /assignments/{plcAssignmentId} {
-
-        // Create: non-viewer member (plcCanEditContent), doc id pinned, sharedBy ==
-        // caller. sessionOptions is an opaque map (keys vary by mode); shape pinned
-        // via hasOnly([...]), per-field validation is client-side.
-        allow create: if plcEd()
-          && plcAssignmentKeysOk()
-          && plcAssignmentId == incoming().id
-          && mySharedBy()
-          && isStr('quizTitle')
-          && isStr('quizId')
-          && isStr('syncGroupId')
-          // Guard against an empty `syncGroupId` smuggling a stub entry.
-          && incoming().syncGroupId.size() > 0
-          && incoming().sessionMode in ['teacher', 'auto', 'student']
-          && isMap('sessionOptions')
-          && (incoming().attemptLimit == null
-                || isInt('attemptLimit'))
-          && isStr('sharedByEmail')
-          && isStr('sharedByName')
-          && isInt('sharedAt')
-          && isInt('updatedAt');
-
-        // Update: non-viewer member mirrors title/sessionOptions/updatedAt.
-        // Identity + attribution immutable; viewers denied.
-        allow update: if plcEd()
-          && plcAssignmentKeysOk()
-          && sameId()
-          && unchanged('quizId')
-          && unchanged('syncGroupId')
-          && unchanged('sharedBy')
-          && unchanged('sharedByEmail')
-          && unchanged('sharedByName')
-          && unchanged('sharedAt')
-          && isStr('quizTitle')
-          && incoming().sessionMode in ['teacher', 'auto', 'student']
-          && isMap('sessionOptions')
-          && (incoming().attemptLimit == null
-                || isInt('attemptLimit'))
-          && isInt('updatedAt');
-
-        // Non-viewer member can unshare; already-imported personal assignments
-        // keep running (independent docs). Viewers denied.
-      }
+      // assignments: reads in the shared match /{coll}/{collDocId}; writes run in plcContentWriteV1.
 
       // PLC shared notes (Phase 5). Collaborative notebook — any member CRUDs any
       // note; LWW via lastEditedBy/lastEditedAt. Shape locked via hasOnly([...]).
+      // notes: reads and deletes in the shared match; create and update run in plcNotesWriteV1.
       match /notes/{noteId} {
-
-        // Create: non-viewer member (plcCanEditContent). Optional fields: kind
-        // ('freeform'|'meeting'), meetingId, version (Decision 2.4), deletedAt
-        // tombstone — all OPTIONAL so legacy notes validate; hasOnly([...]) closes
-        // the shape.
-        allow create: if plcEd()
-          && plcNoteKeysOk()
-          && incoming().id == noteId
-          && myCreatedBy()
-          && incoming().lastEditedBy == authUid()
-          && isStr('title')
-          && isStr('body')
-          && (
-               !('kind' in incoming())
-               || incoming().kind in ['freeform', 'meeting']
-             )
-          && (
-               optNullStr('meetingId')
-             )
-          && (
-               optListMax('actionItems', 200)
-             )
-          && (
-               !('yState' in incoming())
-               || isStr('yState')
-             )
-          && plcNoteBlocksOk()
-          // A fresh note may omit `version` (legacy/no-version) or start it at
-          // an int (clients seed 0/1). The update branch enforces the +1 bump.
-          && (
-               !('version' in incoming())
-               || isInt('version')
-             )
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('lastEditedAt');
-
-        // Update: any non-viewer member edits any note; id/createdBy/createdAt
-        // immutable, editor stamps lastEditedBy. Optimistic concurrency (Decision
-        // 2.4): incoming version must be old+1 (stale writer is rejected → conflict
-        // toast); during rollout both-absent version is also accepted. Viewers
-        // denied.
-        allow update: if plcEd()
-          && plcNoteKeysOk()
-          && sameId()
-          && unchanged('createdBy')
-          && unchanged('createdAt')
-          && incoming().lastEditedBy == authUid()
-          && plcSubTimeFieldOk('lastEditedAt')
-          && isStr('title')
-          && isStr('body')
-          && (
-               !('kind' in incoming())
-               || incoming().kind in ['freeform', 'meeting']
-             )
-          && (
-               optNullStr('meetingId')
-             )
-          && (
-               optListMax('actionItems', 200)
-             )
-          && (
-               !('yState' in incoming())
-               || isStr('yState')
-             )
-          && plcNoteBlocksOk()
-          && plcSubDeletedAtOk()
-          // Version precondition: new == old + 1, OR both absent (rollout).
-          && (
-               (
-                 'version' in incoming()
-                 && 'version' in existing()
-                 && incoming().version == existing().version + 1
-               )
-               || (
-                 !('version' in incoming())
-                 && !('version' in existing())
-               )
-             );
-
-        // Non-viewer member can delete (PLC-owned, not creator-owned); viewers
-        // denied.
-
         // Yjs CRDT update log — one base64 update per doc, replayed on top of
         // the note's compacted `yState`. Append-only for clients: an update is
         // never rewritten, only deleted once compaction has folded it into the
@@ -3671,287 +2646,55 @@ service cloud.firestore {
       // Meeting recordings (docs/plans/shipped/PLC_MEETING_RECORDING.md). Members read. The
       // recorder writes only the live fields while recording or paused; 'finalizing' is
       // the server's merge lock, and every other change goes through Cloud Functions.
+      // recordings: reads in the shared match; create and update run in plcNotesWriteV1.
       match /recordings/{recordingId} {
-
-        allow create: if plcEd()
-          && newKeys().hasAll([
-               'noteId', 'recorderUid', 'status', 'parts', 'durationMs',
-               'lastHeartbeatAt', 'createdAt'
-             ])
-          && newKeys().hasOnly([
-               'noteId', 'recorderUid', 'status', 'parts', 'durationMs',
-               'lastHeartbeatAt', 'createdAt', 'audioExpiresAt'
-             ])
-          && isStr('noteId')
-          && dbExists4('plcs', plcId, 'notes', incoming().noteId)
-          && incoming().recorderUid == authUid()
-          && incoming().status == 'recording'
-          && plcRecordingLiveOk()
-          && plcSubTimeFieldOk('createdAt')
-          && (
-               !('audioExpiresAt' in incoming())
-               || (isInt('audioExpiresAt')
-                    && incoming().audioExpiresAt <= nowMs() + 2592000000)
-             );
-
-        allow update: if plcEd()
-          && existing().recorderUid == authUid()
-          && existing().status in ['recording', 'paused']
-          && incoming().status in ['recording', 'paused']
-          && incoming().diff(existing()).affectedKeys().hasOnly([
-               'status', 'parts', 'durationMs', 'lastHeartbeatAt'
-             ])
-          && plcRecordingLiveOk();
-
         // Speaker-labelled transcript; only the server writes it.
         match /transcript/{docId} {
           allow read: if plcRd();
         }
       }
 
-      // PLC shared Google Docs. Lightweight pointers — the doc content
-      // lives in Google, not here. Any current member can CRUD.
+      // docs: reads in the shared match /{coll}/{collDocId}.
       match /docs/{docId} {
-
-        // Create: non-viewer member (plcCanEditContent). Optional deletedAt
-        // tombstone; shape locked via hasOnly([...]).
-        allow create: if plcEd()
-          && plcDocKeysOk()
-          && incoming().id == docId
-          && myCreatedBy()
-          && isStr('title')
-          && isStr('url')
-          && isStr('createdByName')
-          && plcSubDeletedAtOk()
-          && plcDocActionItemsOk()
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt');
-
-        // A viewer (Decision 3.2) is denied via plcCanEditContent.
+        // Action items stay direct (usePlcDocs, plcActionItemDone); every other write runs in plcContentWriteV1.
         allow update: if plcEd()
-          && plcDocKeysOk()
-          && sameId()
-          && unchanged('createdBy')
-          && unchanged('createdAt')
-          && isStr('title')
-          && isStr('url')
-          && plcSubDeletedAtOk()
-          && plcDocActionItemsOk()
+          && changedOnly(['actionItems', 'updatedAt'])
+          && optListMax('actionItems', 200)
           && plcSubTimeFieldOk('updatedAt');
-
-        // A viewer (Decision 3.2) is denied via plcCanEditContent.
       }
 
       // A note's Google Doc from "Open in Docs". Create-only, so the first
       // teammate to make it wins and later clicks open that same doc.
-      match /noteDocs/{noteId} {
-        allow create: if plcEd()
-          && newKeys().hasOnly(['fileId', 'url', 'createdBy', 'createdAt'])
-          && isStr('fileId')
-          && isStr('url')
-          && incoming().url.matches('https://docs[.]google[.]com/.*')
-          && myCreatedBy()
-          && plcSubTimeFieldOk('createdAt');
-      }
+      // noteDocs: reads and deletes in the shared match; writes run in plcNotesWriteV1.
 
-      // My Groups resources: links posted by a non-viewer member.
-      match /links/{linkId} {
-        allow create, update: if plcEd()
-          && newKeys().hasOnly([
-               'id', 'title', 'url', 'note', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'
-             ])
-          && incoming().id == linkId
-          && isStr('title') && incoming().title.size() <= 200
-          && isStr('url') && incoming().url.size() <= 2000
-          && incoming().url.matches('https://.*')
-          && (!('note' in incoming()) || (isStr('note') && incoming().note.size() <= 500))
-          && isStr('createdByName')
-          && (request.method == 'create'
-            ? myCreatedBy()
-            : unchanged('createdBy') && unchanged('createdAt'))
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt');
-      }
+      // links: reads in the shared match /{coll}/{collDocId}; writes run in plcTeamItemsV1.
 
-      // PLC shared to-do list (Phase 5). One doc per todo (concurrent toggles
-      // don't serialize). Any member CRUDs any todo.
-      match /todos/{todoId} {
-
-        // Legacy; imported into note action items (§7.4) — no new to-dos.
-
-        // Legacy; only the soft-delete tombstone may still be written (§7.4) —
-        // used to archive a to-do once it's been imported into a note.
-        allow update: if plcEd()
-          && changedOnly(['deletedAt'])
-          && plcSubDeletedAtOk();
-
-        // A viewer (Decision 3.2) is denied via plcCanEditContent.
-      }
+      // todos: legacy, read-only here; the tombstone write runs in plcTeamItemsV1.
 
       // ---- Mentoring program (TEAMS_REDESIGN T29 to T33) ----
-      // Facilitators (lead, co-lead) run the program; a workspace is private to its pair and the facilitators.
-      function mentPlc(id) {
-        return get(/databases/$(database)/documents/plcs/$(id)).data;
-      }
+      // A workspace is private to its pair and the facilitators (lead, co-lead); every write runs in plcSettingsV1.
       function mentFacilitator(id) {
-        let p = mentPlc(id);
-        return signedIn() && isPlcMembershipManager(p);
+        return signedIn() && isPlcMembershipManager(dbGet('plcs', id).data);
       }
       function mentInPair(id, ws) {
         return signedIn() && authUid() in ws.get('memberUids', []) && plcMember(id);
       }
-      function mentWs(id, wsId) {
-        return dbGet4('plcs', id, 'workspaces', wsId).data;
-      }
-      // A tagged, active member (never a viewer or facilitator) of the program.
-      function mentTagged(p, uid, tag) {
-        let m = p.get('members', {}).get(uid, {});
-        return m.get('role', '') == 'member'
-          && m.get('status', '') == 'active'
-          && m.get('mentorRole', '') == tag;
-      }
-      function mentHttps(v) {
-        return v is string && v.size() <= 2000 && v.matches('https://.*');
-      }
-      function mentTaskOk(taskId) {
-        let d = incoming();
-        let tpl = d.get('templateDoc', null);
-        return d.keys().hasOnly([
-               'id', 'title', 'instructions', 'dueDate', 'submitter', 'templateDoc',
-               'createdBy', 'createdAt', 'updatedAt'
-             ])
-          && d.id == taskId
-          && isStr('title') && d.title.size() > 0 && d.title.size() <= 200
-          && optString(d, 'instructions') && d.get('instructions', '').size() <= 5000
-          && isStr('dueDate') && d.dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-          && d.submitter in ['mentee', 'mentor', 'both']
-          && (tpl == null
-            || (tpl is map && tpl.keys().hasOnly(['title', 'url', 'fileId'])
-              && tpl.get('title', '') is string && mentHttps(tpl.get('url', null))
-              && tpl.get('fileId', '') is string))
-          && (request.method == 'create'
-            ? d.createdBy == authUid()
-            : unchanged('createdBy') && unchanged('createdAt'))
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt');
-      }
-      // One doc link added per write, and only an https link.
-      function mentDocsOk(before) {
-        let added = incoming().get('docs', []).removeAll(before);
-        return added.size() == 0
-          || (added.size() == 1 && added[0] is map && mentHttps(added[0].get('url', null)));
-      }
-      // Keyed by submission id ({taskId}_{uid}): each partner marks only their own, alongside that submission.
-      function mentStatusEntryOk(id, wsId, k, after) {
-        let u = authUid();
-        let sub = getAfter(/databases/$(database)/documents/plcs/$(id)/workspaces/$(wsId)/submissions/$(k)).data;
-        return k == sub.taskId + '_' + u
-          && after[k] is map
-          && after[k].keys().hasOnly(['submittedAt', 'submittedBy'])
-          && after[k].submittedBy == u
-          && sub.submittedBy == u
-          && after[k].submittedAt == sub.submittedAt;
-      }
-      // Entries are only ever added, one per write.
-      function mentStatusOk(id, wsId) {
-        let before = existing().get('taskStatus', {});
-        let after = incoming().get('taskStatus', {});
-        let added = after.keys().removeAll(before.keys());
-        return after.diff(before).affectedKeys().size() == added.size()
-          && (added.size() == 0
-            || (added.size() == 1 && mentStatusEntryOk(id, wsId, added[0], after)));
-      }
-      function mentWorkspaceContentOk() {
-        let d = incoming();
-        return d.keys().hasOnly([
-               'mentorUid', 'menteeUid', 'memberUids', 'mentorName', 'menteeName',
-               'actionItems', 'docs', 'taskStatus', 'createdAt', 'updatedAt'
-             ])
-          && optString(d, 'mentorName') && optString(d, 'menteeName')
-          && optList(d, 'actionItems') && d.get('actionItems', []).size() <= 200
-          && optList(d, 'docs') && d.get('docs', []).size() <= 100
-          && mentDocsOk(request.method == 'create' ? [] : existing().get('docs', []))
-          && optMap(d, 'taskStatus')
-          && plcSubTimeFieldOk('createdAt')
-          && plcSubTimeFieldOk('updatedAt');
+      function mentWsReadOk(wsId) {
+        return mentFacilitator(plcId)
+          || mentInPair(plcId, dbGet4('plcs', plcId, 'workspaces', wsId).data);
       }
 
-      // Tasks: every member reads; facilitators post, edit and remove.
-      match /tasks/{taskId} {
-        allow create, update: if mentFacilitator(plcId) && mentTaskOk(taskId);
-        allow delete: if mentFacilitator(plcId);
-      }
+      // tasks: every member reads (shared match); facilitator writes run in plcTeamItemsV1.
 
-      // A pairing is its workspace: facilitators create and remove it; the pair edits its content.
       match /workspaces/{workspaceId} {
         allow read: if mentFacilitator(plcId) || mentInPair(plcId, existing());
-        allow create: if mentFacilitator(plcId)
-          && mentPlc(plcId).get('groupType', '') == 'mentoring'
-          && isStr('mentorUid') && isStr('menteeUid')
-          && incoming().mentorUid != incoming().menteeUid
-          && workspaceId == incoming().mentorUid + '_' + incoming().menteeUid
-          && incoming().memberUids == [incoming().mentorUid, incoming().menteeUid]
-          && mentTagged(mentPlc(plcId), incoming().mentorUid, 'mentor')
-          && mentTagged(mentPlc(plcId), incoming().menteeUid, 'mentee')
-          && incoming().get('taskStatus', {}).size() == 0
-          && mentWorkspaceContentOk();
-        allow update: if mentWorkspaceContentOk()
-          && (
-            (mentFacilitator(plcId)
-              && changedOnly(['docs', 'mentorName', 'menteeName', 'updatedAt']))
-            || (mentInPair(plcId, existing()) && plcEditor(plcId)
-              && changedOnly(['actionItems', 'docs', 'taskStatus', 'updatedAt'])
-              && mentStatusOk(plcId, workspaceId))
-          );
-        allow delete: if mentFacilitator(plcId);
 
-        // Check-in notes: the pair writes; facilitators read and clear them with the pair.
         match /checkins/{checkinId} {
-          allow read: if mentFacilitator(plcId)
-            || mentInPair(plcId, mentWs(plcId, workspaceId));
-          allow create, update: if mentInPair(plcId, mentWs(plcId, workspaceId))
-            && plcEd()
-            && newKeys().hasOnly([
-                 'id', 'title', 'body', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'
-               ])
-            && incoming().id == checkinId
-            && isStr('title') && incoming().title.size() <= 200
-            && isStr('body') && incoming().body.size() <= 50000
-            && isStr('createdByName')
-            && (request.method == 'create'
-              ? myCreatedBy()
-              : unchanged('createdBy') && unchanged('createdAt'))
-            && plcSubTimeFieldOk('createdAt')
-            && plcSubTimeFieldOk('updatedAt');
-          allow delete: if mentFacilitator(plcId)
-            || (mentInPair(plcId, mentWs(plcId, workspaceId)) && plcEd());
+          allow read: if mentWsReadOk(workspaceId);
         }
 
-        // One submission per task per submitter ({taskId}_{uid}), by whoever the task names; facilitators read and clear them.
         match /submissions/{subId} {
-          function mentMaySubmit(ws) {
-            let u = authUid();
-            let who = dbGet4('plcs', plcId, 'tasks', incoming().taskId).data.submitter;
-            return who == 'both'
-              || (who == 'mentor' && u == ws.mentorUid)
-              || (who == 'mentee' && u == ws.menteeUid);
-          }
-          allow read: if mentFacilitator(plcId)
-            || mentInPair(plcId, mentWs(plcId, workspaceId));
-          allow create, update: if isStr('taskId')
-            && subId == incoming().taskId + '_' + authUid()
-            && incoming().id == subId
-            && incoming().submittedBy == authUid()
-            && mentInPair(plcId, mentWs(plcId, workspaceId))
-            && plcEd()
-            && mentMaySubmit(mentWs(plcId, workspaceId))
-            && newKeys().hasOnly([
-                 'id', 'taskId', 'submittedBy', 'submittedByName', 'submittedAt', 'docUrl'
-               ])
-            && isStr('submittedByName')
-            && (!('docUrl' in incoming()) || mentHttps(incoming().docUrl))
-            && plcSubTimeFieldOk('submittedAt');
-          allow delete: if mentFacilitator(plcId);
+          allow read: if mentWsReadOk(workspaceId);
         }
       }
       // ---- end Mentoring program ----
@@ -3982,108 +2725,12 @@ service cloud.firestore {
           && authUid() == presenceUid;
       }
 
-      // PLC activity log (Decision 2.2, §3.4). Append-only event feed written
-      // fire-and-forget. Any member reads; any member creates an event but only
-      // one whose actorUid == their uid (no forging). Clients never update/delete
-      // (immutable; ~90d trimming is gcPlcOrphans). Shape locked via hasOnly([...]);
-      // type pinned to the PlcActivityType union; optional target* validated.
-      match /activity/{eventId} {
+      // activity: append-only feed, member-readable (shared match); events are written by plcTeamItemsV1.
 
-        allow create: if plcRd()
-          && newKeys().hasOnly([
-               'id', 'type', 'actorUid', 'actorName',
-               'targetType', 'targetId', 'targetTitle', 'createdAt'
-             ])
-          && incoming().id == eventId
-          && incoming().actorUid == authUid()
-          && incoming().type in [
-               'member_joined', 'member_left', 'role_changed',
-               'assessment_created', 'assessment_shared',
-               'assessment_results_ready', 'meeting_held',
-               'note_created', 'comment_added',
-               'item_deleted', 'item_restored', 'paper_printed'
-             ]
-          && isStr('actorName')
-          && (
-               !('targetType' in incoming())
-               || isStr('targetType')
-             )
-          && (
-               !('targetId' in incoming())
-               || isStr('targetId')
-             )
-          && (
-               !('targetTitle' in incoming())
-               || isStr('targetTitle')
-             )
-          && plcSubTimeFieldOk('createdAt');
-
-        // No client update/delete — see the block comment above (Wave-4 GC).
-      }
-
-      // PLC comments + @mentions (Decision 2.6, §3.5). Scoped to dataCard /
-      // assessment / note targets. Any member reads. Create: any member, authorUid
-      // == caller, id pinned, schema locked. Update: author may edit body/editedAt
-      // and/or soft-delete; any member may flip deletedAt; identity/attribution/
-      // targeting/mentions immutable. Hard-delete is gcPlcOrphans.
-      match /comments/{commentId} {
-
-        // A viewer (Decision 3.2) is denied content writes via plcCanEditContent
-        // (reads stay open above).
-        allow create: if plcEd()
-          && plcCommentKeysOk()
-          && incoming().id == commentId
-          && myAuthorUid()
-          && incoming().targetType in ['dataCard', 'assessment', 'note']
-          && isStr('targetId')
-          && isStr('authorName')
-          && isStr('body')
-          && isList('mentions')
-          && (
-               !('editedAt' in incoming())
-               || incoming().editedAt == null
-               || isInt('editedAt')
-               || isTimestamp('editedAt')
-             )
-          && plcSubDeletedAtOk()
-          && plcSubTimeFieldOk('createdAt');
-
-        // Update: identity/attribution/targeting/mentions immutable. Author edits
-        // body/editedAt and/or soft-deletes; any non-viewer may flip deletedAt (a
-        // non-author can only ever change deletedAt). Viewers denied.
-        allow update: if plcEd()
-          && plcCommentKeysOk()
-          && sameId()
-          && unchanged('targetType')
-          && unchanged('targetId')
-          && unchanged('authorUid')
-          && unchanged('authorName')
-          && unchanged('createdAt')
-          && unchanged('mentions')
-          && isStr('body')
-          && (
-               !('editedAt' in incoming())
-               || incoming().editedAt == null
-               || isInt('editedAt')
-               || isTimestamp('editedAt')
-             )
-          && plcSubDeletedAtOk()
-          // Only the author may change body/editedAt; a non-author update must
-          // leave body + editedAt untouched (i.e. it may only flip deletedAt).
-          && (
-               authUid() == existing().authorUid
-               || (
-                 unchanged('body')
-                 && incoming().get('editedAt', null)
-                      == existing().get('editedAt', null)
-               )
-             );
-
-        // Hard delete is server-only (GC). Clients soft-delete via `deletedAt`.
-      }
+      // comments: reads in the shared match; create and update run in plcNotesWriteV1 (hard delete is GC).
       // One rule for the subcollections listed: Google's compiler expands every copy of a rule separately.
       match /{coll}/{collDocId} {
-        allow delete: if coll in ['assessments', 'assignments', 'docs', 'flashcard_sets', 'folders', 'goals', 'links', 'meetings', 'noteDocs', 'notes', 'quizzes', 'rubrics', 'todos', 'video_activities'] && (plcEd());
+        allow delete: if coll in ['folders', 'meetings', 'noteDocs', 'notes'] && (plcEd());
         allow read: if coll in ['activity', 'assessments', 'assignment_index', 'assignments', 'comments', 'docs', 'flashcard_results', 'flashcard_sets', 'folders', 'goals', 'links', 'meetings', 'meta', 'norming', 'noteDocs', 'notes', 'presence', 'question_banks', 'quizzes', 'recordings', 'rubrics', 'tasks', 'todos', 'video_activities'] && (plcRd());
       }
     }

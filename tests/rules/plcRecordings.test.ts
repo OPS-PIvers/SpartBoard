@@ -1,5 +1,5 @@
 // Rules for group meeting recordings (docs/plans/shipped/PLC_MEETING_RECORDING.md):
-//   - plcs/{plcId}/recordings/{id}: members read; the recorder writes live fields only.
+//   - plcs/{plcId}/recordings/{id}: members read; clients cannot write (plcNotesWriteV1 does).
 //   - .../transcript/main: members read; server writes.
 //   - Storage plc_meeting_audio/{plcId}/{id}/{part}/{segment}.webm: members read, recorder uploads.
 //
@@ -185,85 +185,34 @@ describe('recordings: read', () => {
   });
 });
 
-describe('recordings: create', () => {
-  it('lets an editor start a recording as themselves', async () => {
-    await assertSucceeds(
-      setDoc(doc(db(EDITOR), REC_PATH), newRecording(EDITOR))
-    );
-    await assertSucceeds(
+describe('recordings: create refused (plcNotesWriteV1 writes them)', () => {
+  it('denies every client starting a recording, the editor and lead included', async () => {
+    await assertFails(setDoc(doc(db(EDITOR), REC_PATH), newRecording(EDITOR)));
+    await assertFails(
       setDoc(
         doc(db(LEAD), `${REC_COL}/rec-2`),
         newRecording(LEAD, { audioExpiresAt: Date.now() + 30 * DAY - 1000 })
       )
     );
-  });
-
-  it('denies viewers and outsiders', async () => {
     await assertFails(setDoc(doc(db(VIEWER), REC_PATH), newRecording(VIEWER)));
     await assertFails(
       setDoc(doc(db(OUTSIDER), REC_PATH), newRecording(OUTSIDER))
     );
   });
-
-  it('denies recording on behalf of someone else', async () => {
-    await assertFails(setDoc(doc(db(EDITOR), REC_PATH), newRecording(LEAD)));
-  });
-
-  it('requires status recording and an existing note', async () => {
-    await assertFails(
-      setDoc(
-        doc(db(EDITOR), REC_PATH),
-        newRecording(EDITOR, { status: 'ready' })
-      )
-    );
-    await assertFails(
-      setDoc(
-        doc(db(EDITOR), REC_PATH),
-        newRecording(EDITOR, { noteId: 'missing-note' })
-      )
-    );
-  });
-
-  it('refuses server-only fields and an expiry past 30 days', async () => {
-    for (const extra of [
-      { draft: { markdown: 'x' } },
-      { recoveredFrom: 'rec-0' },
-      { audioDeletedAt: 1 },
-      { audioExpiresAt: Date.now() + 40 * DAY },
-    ]) {
-      await assertFails(
-        setDoc(doc(db(EDITOR), REC_PATH), newRecording(EDITOR, extra))
-      );
-    }
-  });
-
-  it('refuses a missing heartbeat or an over-long duration', async () => {
-    const { lastHeartbeatAt: _drop, ...noHeartbeat } = newRecording(EDITOR);
-    await assertFails(setDoc(doc(db(EDITOR), REC_PATH), noHeartbeat));
-    await assertFails(
-      setDoc(
-        doc(db(EDITOR), REC_PATH),
-        newRecording(EDITOR, { durationMs: 4_000_000 })
-      )
-    );
-  });
 });
 
-describe('recordings: update', () => {
-  it('lets the recorder heartbeat, pause and resume', async () => {
+describe('recordings: update refused (plcNotesWriteV1 writes them)', () => {
+  it('denies the recorder a heartbeat, pause or resume', async () => {
     await seed();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db(EDITOR), REC_PATH), {
         lastHeartbeatAt: serverTimestamp(),
         durationMs: 90000,
         parts: [{ segmentCount: 3, durationMs: 90000 }],
       })
     );
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db(EDITOR), REC_PATH), { status: 'paused' })
-    );
-    await assertSucceeds(
-      updateDoc(doc(db(EDITOR), REC_PATH), { status: 'recording' })
     );
   });
 
@@ -276,43 +225,16 @@ describe('recordings: update', () => {
     }
   });
 
-  it('denies the recorder any status the server owns', async () => {
-    await seed();
-    for (const status of ['finalizing', 'ready', 'queued', 'transcribed']) {
-      await assertFails(updateDoc(doc(db(EDITOR), REC_PATH), { status }));
-    }
-  });
-
-  it('locks the recorder out once the server has taken over', async () => {
-    await seed({ status: 'finalizing' });
-    await assertFails(
-      updateDoc(doc(db(EDITOR), REC_PATH), { lastHeartbeatAt: 2000 })
-    );
-  });
-
-  it('denies writing drafts, expiry or identity fields', async () => {
+  it('denies the recorder writing drafts, expiry, identity or a server-owned status', async () => {
     await seed();
     for (const patch of [
+      { status: 'finalizing' },
       { draft: { markdown: 'x', actionItems: [] } },
-      { draftResolvedAt: 1 },
       { audioExpiresAt: Date.now() + 365 * DAY },
       { recorderUid: LEAD },
-      { noteId: 'other' },
     ]) {
       await assertFails(updateDoc(doc(db(EDITOR), REC_PATH), patch));
     }
-  });
-
-  it('denies a paused recording being edited by a demoted recorder', async () => {
-    await seed({ status: 'paused' });
-    await testEnv.withSecurityRulesDisabled(async (c) => {
-      await updateDoc(doc(c.firestore(), `plcs/${PLC_ID}`), {
-        [`members.${EDITOR}.role`]: 'viewer',
-      });
-    });
-    await assertFails(
-      updateDoc(doc(db(EDITOR), REC_PATH), { status: 'recording' })
-    );
   });
 });
 

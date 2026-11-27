@@ -6,9 +6,7 @@
 //   - An update carries its author's uid and cannot be forged for a teammate.
 //   - Updates are immutable — compaction deletes them, it never rewrites them.
 //   - An outsider touches nothing.
-//   - `yState` is accepted on a note as an optional string and stays inside the
-//     existing version precondition, so the snapshot write cannot smuggle a
-//     content change past the `new == old + 1` check.
+//   - The `yState` snapshot write on the note doc is server-only (plcNotesWriteV1).
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -252,9 +250,9 @@ describe('plcs/{plcId}/notes/{noteId}/yUpdates — CRDT update log', () => {
   });
 });
 
-describe('plcs/{plcId}/notes/{noteId} — yState snapshot field', () => {
-  it('accepts a snapshot write that bumps the version', async () => {
-    await assertSucceeds(
+describe('plcs/{plcId}/notes/{noteId} — yState snapshot is server-only', () => {
+  it('a member can no longer write a snapshot that bumps the version', async () => {
+    await assertFails(
       updateDoc(doc(asEditor(), notePath), {
         yState: 'AQHtqZ7WAwAHAQRib2R5AwFo',
         lastEditedBy: EDITOR_UID,
@@ -264,11 +262,11 @@ describe('plcs/{plcId}/notes/{noteId} — yState snapshot field', () => {
     );
   });
 
-  it('accepts yState on create', async () => {
+  it('a member can no longer create a note carrying yState', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await deleteDoc(doc(ctx.firestore(), notePath));
     });
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(asEditor(), notePath),
         note({ version: 0, yState: 'AQHtqZ7WAwAHAQRib2R5AwFo' })
@@ -276,29 +274,7 @@ describe('plcs/{plcId}/notes/{noteId} — yState snapshot field', () => {
     );
   });
 
-  it('rejects a non-string yState', async () => {
-    await assertFails(
-      updateDoc(doc(asEditor(), notePath), {
-        yState: 42,
-        lastEditedBy: EDITOR_UID,
-        lastEditedAt: serverTimestamp(),
-        version: 2,
-      })
-    );
-  });
-
-  it('still enforces the version precondition on a snapshot write', async () => {
-    await assertFails(
-      updateDoc(doc(asEditor(), notePath), {
-        yState: 'AQHtqZ7WAwAHAQRib2R5AwFo',
-        lastEditedBy: EDITOR_UID,
-        lastEditedAt: serverTimestamp(),
-        version: 1,
-      })
-    );
-  });
-
-  it('denies a viewer writing a snapshot', async () => {
+  it('a viewer cannot write a snapshot either', async () => {
     await assertFails(
       updateDoc(doc(asViewer(), notePath), {
         yState: 'AQHtqZ7WAwAHAQRib2R5AwFo',

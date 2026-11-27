@@ -1,11 +1,8 @@
 // Firestore security rules regression coverage for `plcs/{plcId}/activity`.
 // Pins the Wave-2 activity-log invariants (Decision 2.2, §3.4):
 //   - Any current PLC member can read the activity feed.
-//   - A member may CREATE an event, but only one whose `actorUid` is their own.
-//   - `id` is pinned to the doc id; `type` is pinned to the closed union.
-//   - Schema is locked; `createdAt` dual-accepts int || timestamp.
-//   - Clients may NEVER update or delete an event (server-only GC, Wave 4).
-//   - Non-members cannot read or create.
+//   - Clients may NEVER create, update or delete an event (server-only: plcTeamItemsV1 writes, GC deletes).
+//   - Non-members cannot read.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -133,18 +130,15 @@ describe('plcs/{plcId}/activity — read', () => {
 // Create
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/activity — create', () => {
-  it('a member can create an event for their own action', async () => {
-    await assertSucceeds(
+describe('plcs/{plcId}/activity — create refused (plcTeamItemsV1 writes events)', () => {
+  it('a member can no longer create an event for their own action', async () => {
+    await assertFails(
       setDoc(
         doc(asMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`),
         validEvent()
       )
     );
-  });
-
-  it('accepts serverTimestamp() createdAt (dual-accept)', async () => {
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(asMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`),
         validEvent({ createdAt: serverTimestamp() })
@@ -152,66 +146,7 @@ describe('plcs/{plcId}/activity — create', () => {
     );
   });
 
-  it('accepts an event with no optional target fields', async () => {
-    await assertSucceeds(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`), {
-        id: EVENT_ID,
-        type: 'member_joined',
-        actorUid: MEMBER_UID,
-        actorName: 'Member Teacher',
-        createdAt: 1000,
-      })
-    );
-  });
-
-  // The delegated-print feed entry is written by a Cloud Function, but the rules
-  // union is the one place a new PlcActivityType can be silently forgotten.
-  it('accepts the delegated paper-print event type', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`),
-        validEvent({ type: 'paper_printed', targetType: 'paperBatch' })
-      )
-    );
-  });
-
-  it('rejects an event whose actorUid is not the caller (no forging)', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`),
-        validEvent({ actorUid: MEMBER2_UID })
-      )
-    );
-  });
-
-  it('rejects an event whose id does not match the doc id', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`),
-        validEvent({ id: 'different' })
-      )
-    );
-  });
-
-  it('rejects an event with a type outside the closed union', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`),
-        validEvent({ type: 'made_up_type' })
-      )
-    );
-  });
-
-  it('rejects an extra unknown field (schema lock-down)', async () => {
-    await assertFails(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`), {
-        ...validEvent(),
-        unexpected: 'x',
-      })
-    );
-  });
-
-  it('a non-member cannot create an event', async () => {
+  it('a non-member cannot create an event either', async () => {
     await assertFails(
       setDoc(
         doc(asNonMember(), `plcs/${PLC_ID}/activity/${EVENT_ID}`),

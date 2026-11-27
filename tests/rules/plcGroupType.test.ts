@@ -1,6 +1,6 @@
-// Rules coverage for My Groups group types on the PLC root doc: who can set
-// `groupType` and `autoRoster` on create and on the lead's broad update, and
-// that typed groups stay readable by members only.
+// Rules coverage for My Groups group types on the PLC root doc: typed groups
+// stay readable by members only, and `groupType` / `autoRoster` can no longer
+// be written by a client (plcSettingsV1 does it).
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -122,39 +122,20 @@ beforeEach(async () => {
   await seedStaff([LEAD_UID]);
 });
 
-describe('create', () => {
-  it('allows a teacher to create a group with no type (a PLC)', async () => {
-    await assertSucceeds(setDoc(doc(staffDb(LEAD_UID), 'plcs/g1'), newGroup()));
-  });
-
-  it.each(['plc', 'department', 'mentoring'])(
-    'allows a teacher to create a %s group',
+describe('create refused (plcSettingsV1 creates groups)', () => {
+  it.each([undefined, 'plc', 'department', 'mentoring', 'building', 'club'])(
+    'a teacher can no longer create a group directly (type %s)',
     async (groupType) => {
-      await assertSucceeds(
+      await assertFails(
         setDoc(
-          doc(staffDb(LEAD_UID), `plcs/g-${groupType}`),
-          newGroup({ groupType })
+          doc(staffDb(LEAD_UID), `plcs/g-${groupType ?? 'none'}`),
+          newGroup(groupType ? { groupType } : {})
         )
       );
     }
   );
 
-  it('rejects a teacher creating a building group', async () => {
-    await assertFails(
-      setDoc(
-        doc(staffDb(LEAD_UID), 'plcs/g2'),
-        newGroup({ groupType: 'building' })
-      )
-    );
-  });
-
-  it('rejects an unknown group type', async () => {
-    await assertFails(
-      setDoc(doc(staffDb(LEAD_UID), 'plcs/g3'), newGroup({ groupType: 'club' }))
-    );
-  });
-
-  it('rejects a teacher turning on auto-roster', async () => {
+  it('a teacher cannot create a group with auto-roster', async () => {
     await assertFails(
       setDoc(doc(staffDb(LEAD_UID), 'plcs/g4'), newGroup({ autoRoster: false }))
     );
@@ -174,60 +155,31 @@ describe('read', () => {
   });
 });
 
-describe('lead update', () => {
-  it('lets the lead switch between teacher types', async () => {
+describe('lead and member updates refused (plcSettingsV1 does them)', () => {
+  it('the lead can no longer switch type, set a type on a legacy PLC or rename', async () => {
     await seed({ groupType: 'department' });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         groupType: 'mentoring',
         updatedAt: 2,
       })
     );
-  });
-
-  it('lets the lead set a type on a legacy PLC', async () => {
-    await seed();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         name: 'Renamed',
-        groupType: 'department',
         updatedAt: 2,
       })
     );
   });
 
-  it('rejects the lead making a group a building group', async () => {
-    await seed({ groupType: 'plc' });
-    await assertFails(
-      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
-        groupType: 'building',
-        updatedAt: 2,
-      })
-    );
-  });
-
-  it('rejects the lead changing a building group to another type', async () => {
-    await seed({ groupType: 'building' });
-    await assertFails(
-      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
-        groupType: 'plc',
-        updatedAt: 2,
-      })
-    );
-  });
-
-  it('lets the lead rename a building group', async () => {
+  it('the lead can no longer rename a building group or change auto-roster', async () => {
     await seed({ groupType: 'building', autoRoster: true });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         name: 'Staff',
         updatedAt: 2,
       })
     );
-  });
-
-  it('rejects the lead changing auto-roster', async () => {
-    await seed({ groupType: 'building', autoRoster: true });
     await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         autoRoster: false,
@@ -236,28 +188,17 @@ describe('lead update', () => {
     );
   });
 
-  it('rejects a non-lead member changing the type', async () => {
-    await seed({ groupType: 'plc' });
+  it('a member can no longer change the type or turn Meeting Mode on through features', async () => {
+    await seed({ groupType: 'mentoring' });
     await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
-        groupType: 'mentoring',
+        groupType: 'plc',
         updatedAt: 2,
       })
     );
-  });
-
-  it('lets a member turn Meeting Mode on through features', async () => {
-    await seed({ groupType: 'mentoring' });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
-        features: {
-          quizzes: false,
-          videoActivities: false,
-          notes: true,
-          sharedBoards: true,
-          printForTeammates: true,
-          meeting: true,
-        },
+        features: { notes: true, meeting: true },
         updatedAt: 2,
       })
     );

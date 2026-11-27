@@ -1,4 +1,4 @@
-// Rules for /plcs/{plcId}/flashcard_sets and /plcs/{plcId}/flashcard_results.
+// Rules for /plcs/{plcId}/flashcard_sets and /plcs/{plcId}/flashcard_results: reads only, clients cannot write (plcContentWriteV1 does).
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';
@@ -148,24 +148,15 @@ describe('plcs/{plcId}/flashcard_sets — read', () => {
   });
 });
 
-describe('plcs/{plcId}/flashcard_sets — write', () => {
-  it('a member can share a valid set', async () => {
-    await assertSucceeds(setDoc(doc(asMemberA(), setPath), validSet()));
+describe('plcs/{plcId}/flashcard_sets — client writes refused', () => {
+  it('a member can no longer share a valid set', async () => {
+    await assertFails(setDoc(doc(asMemberA(), setPath), validSet()));
   });
 
-  it('cannot share as someone else', async () => {
-    await assertFails(
-      setDoc(doc(asMemberB(), setPath), validSet({ sharedBy: MEMBER_A_UID }))
-    );
-  });
-
-  it('a viewer cannot share', async () => {
+  it('a viewer and a non-member cannot share', async () => {
     await assertFails(
       setDoc(doc(asViewer(), setPath), validSet({ sharedBy: VIEWER_UID }))
     );
-  });
-
-  it('a non-member cannot share', async () => {
     await assertFails(
       setDoc(
         doc(asNonMember(), setPath),
@@ -174,14 +165,7 @@ describe('plcs/{plcId}/flashcard_sets — write', () => {
     );
   });
 
-  it('rejects unknown keys and a mismatched id', async () => {
-    await assertFails(
-      setDoc(doc(asMemberA(), setPath), validSet({ folderId: 'x' }))
-    );
-    await assertFails(setDoc(doc(asMemberA(), setPath), validSet({ id: 'y' })));
-  });
-
-  it('carries Speak settings through a share', async () => {
+  it('reads a set that carries Speak settings, but refuses a settings edit', async () => {
     const speak = {
       dialects: ['en-US'],
       preset: 'beginner',
@@ -190,11 +174,9 @@ describe('plcs/{plcId}/flashcard_sets — write', () => {
       attempts: 3,
       example: true,
     };
-    await assertSucceeds(
-      setDoc(doc(asMemberA(), setPath), validSet({ speak }))
-    );
+    await seed(setPath, validSet({ speak }));
     await assertSucceeds(getDoc(doc(asViewer(), setPath)));
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMemberB(), setPath), {
         speak: { ...speak, attempts: 5 },
         updatedAt: 2000,
@@ -202,26 +184,18 @@ describe('plcs/{plcId}/flashcard_sets — write', () => {
     );
   });
 
-  it('rejects more than 1000 cards', async () => {
-    const cards = Array.from({ length: 1001 }, (_, i) => ({
-      id: `c${i}`,
-      term: 't',
-      definition: 'd',
-    }));
-    await assertFails(setDoc(doc(asMemberA(), setPath), validSet({ cards })));
-  });
-
-  it('another member can unshare with a tombstone but not rewrite attribution', async () => {
+  it('no member can unshare with a tombstone, rewrite attribution or delete', async () => {
     await seed(setPath, validSet());
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMemberB(), setPath), { deletedAt: 2000, updatedAt: 2000 })
+    );
+    await assertFails(
+      updateDoc(doc(asMemberA(), setPath), { deletedAt: 2000, updatedAt: 2000 })
     );
     await assertFails(
       updateDoc(doc(asMemberB(), setPath), { sharedBy: MEMBER_B_UID })
     );
-    await assertFails(
-      updateDoc(doc(asMemberB(), setPath), { termLanguage: 5 })
-    );
+    await assertFails(deleteDoc(doc(asMemberA(), setPath)));
   });
 
   it('a viewer cannot unshare or delete', async () => {
@@ -249,13 +223,9 @@ describe('plcs/{plcId}/flashcard_results — read', () => {
   });
 });
 
-describe('plcs/{plcId}/flashcard_results — write', () => {
-  it('a member can share their own results', async () => {
-    await assertSucceeds(setDoc(doc(asMemberA(), resultPath), validResult()));
-  });
-
-  it('cannot share results as someone else', async () => {
-    await assertFails(setDoc(doc(asMemberB(), resultPath), validResult()));
+describe('plcs/{plcId}/flashcard_results — client writes refused', () => {
+  it('a member can no longer share their own results', async () => {
+    await assertFails(setDoc(doc(asMemberA(), resultPath), validResult()));
   });
 
   it('a viewer and a non-member cannot share results', async () => {
@@ -270,36 +240,15 @@ describe('plcs/{plcId}/flashcard_results — write', () => {
     );
   });
 
-  it('rejects student ids, bad kinds and non-numeric averages', async () => {
-    await assertFails(
-      setDoc(doc(asMemberA(), resultPath), validResult({ studentUids: ['s1'] }))
-    );
-    await assertFails(
-      setDoc(doc(asMemberA(), resultPath), validResult({ kind: 'quiz' }))
-    );
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), resultPath),
-        validResult({ averagePercent: 'high' })
-      )
-    );
-  });
-
-  it('only the sharer can refresh or remove it', async () => {
+  it('not even the sharer can refresh or remove it', async () => {
     await seed(resultPath, validResult());
-    await assertSucceeds(
+    await assertFails(
       setDoc(
         doc(asMemberA(), resultPath),
         validResult({ completed: 22, updatedAt: 2000 })
       )
     );
-    await assertFails(
-      setDoc(
-        doc(asMemberB(), resultPath),
-        validResult({ sharedBy: MEMBER_B_UID, updatedAt: 3000 })
-      )
-    );
+    await assertFails(deleteDoc(doc(asMemberA(), resultPath)));
     await assertFails(deleteDoc(doc(asMemberB(), resultPath)));
-    await assertSucceeds(deleteDoc(doc(asMemberA(), resultPath)));
   });
 });

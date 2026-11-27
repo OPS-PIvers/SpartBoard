@@ -1,16 +1,6 @@
-// Firestore security rules regression coverage for the Wave-2 widening of
-// `plcs/{plcId}/notes` and `plcs/{plcId}/todos` (§3.8, §3.9, §3.10):
-//   - notes accept the new optional `kind` / `meetingId` / `version` /
-//     `deletedAt` fields; the `version` precondition enforces +1 on update
-//     (with a both-absent rollout escape hatch).
-//   - todos are legacy: create is denied, and update accepts only the
-//     `deletedAt` tombstone.
-//   - Soft-delete (`deletedAt`) round-trips for both.
-//   - Bad shapes (wrong kind, wrong types, version skip) are rejected.
-//
-// The pre-existing notes/todos suite (plcOverviewAndContent.test.ts) continues
-// to cover the legacy field set; this file pins ONLY the new surface so the
-// two stay independently readable.
+// Firestore security rules regression coverage for the Wave-2 shape of
+// `plcs/{plcId}/notes` and `plcs/{plcId}/todos` (§3.8, §3.9, §3.10): client
+// writes to both are refused (plcNotesWriteV1 and plcTeamItemsV1 write them).
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -19,7 +9,6 @@ import { fileURLToPath } from 'url';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import {
   initializeTestEnvironment,
-  assertSucceeds,
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
@@ -82,7 +71,7 @@ beforeEach(async () => {
 // Notes — new fields + version precondition + soft-delete
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/notes — Wave-2 fields', () => {
+describe('plcs/{plcId}/notes — Wave-2 fields (writes are server-only)', () => {
   const meetingNote = (overrides: Record<string, unknown> = {}) => ({
     id: NOTE_ID,
     title: 'Unit 4 CFA debrief',
@@ -97,126 +86,55 @@ describe('plcs/{plcId}/notes — Wave-2 fields', () => {
     deletedAt: null,
     ...overrides,
   });
-
-  it('member can create a meeting note with kind/meetingId/version', async () => {
-    await assertSucceeds(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), meetingNote())
-    );
-  });
-
-  it('rejects an invalid kind value', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        meetingNote({ kind: 'agenda' })
-      )
-    );
-  });
-
-  it('version update must be exactly old + 1', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  const noteRef = () => doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`);
+  const seedNote = (data: Record<string, unknown> = meetingNote()) =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        meetingNote({ version: 3 })
+        data
       );
     });
-    await assertSucceeds(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        meetingNote({ version: 4, lastEditedAt: 2 })
-      )
-    );
+
+  it('a member can no longer create a meeting note with kind/meetingId/version', async () => {
+    await assertFails(setDoc(noteRef(), meetingNote({ version: 0 })));
   });
 
-  it('rejects a stale version bump (skips a number)', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(ctx.firestore(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        meetingNote({ version: 3 })
-      );
-    });
+  it('a member can no longer bump the version or soft-delete', async () => {
+    await seedNote();
     await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        meetingNote({ version: 5, lastEditedAt: 2 })
-      )
-    );
-  });
-
-  it('rejects a same-version write (no bump)', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(ctx.firestore(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        meetingNote({ version: 3 })
-      );
-    });
-    await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        meetingNote({ version: 3, lastEditedAt: 2 })
-      )
-    );
-  });
-
-  it('accepts an update where both old and new omit version (rollout)', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-        id: NOTE_ID,
-        title: 'Legacy',
-        body: 'No version field',
-        createdBy: MEMBER_UID,
-        createdAt: 1,
-        lastEditedBy: MEMBER_UID,
-        lastEditedAt: 1,
-      });
-    });
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
+      updateDoc(noteRef(), {
         body: 'edited',
         lastEditedBy: MEMBER_UID,
         lastEditedAt: 2,
+        version: 2,
+      })
+    );
+    await assertFails(
+      updateDoc(noteRef(), {
+        deletedAt: serverTimestamp(),
+        lastEditedBy: MEMBER_UID,
+        lastEditedAt: 2,
+        version: 2,
       })
     );
   });
 
-  it('rejects adding a version when the stored doc has none (rollout guard)', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-        id: NOTE_ID,
-        title: 'Legacy',
-        body: 'No version field',
-        createdBy: MEMBER_UID,
-        createdAt: 1,
-        lastEditedBy: MEMBER_UID,
-        lastEditedAt: 1,
-      });
+  it('a member can no longer edit an unversioned note', async () => {
+    await seedNote({
+      id: NOTE_ID,
+      title: 'Legacy',
+      body: 'No version field',
+      createdBy: MEMBER_UID,
+      createdAt: 1,
+      lastEditedBy: MEMBER_UID,
+      lastEditedAt: 1,
     });
     await assertFails(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`), {
-        body: 'edited',
+      updateDoc(noteRef(), {
+        body: 'edited legacy',
         lastEditedBy: MEMBER_UID,
         lastEditedAt: 2,
-        version: 1,
       })
-    );
-  });
-
-  it('member can soft-delete a note via deletedAt + version bump', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(ctx.firestore(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        meetingNote({ version: 1 })
-      );
-    });
-    await assertSucceeds(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/notes/${NOTE_ID}`),
-        meetingNote({
-          version: 2,
-          deletedAt: serverTimestamp(),
-          lastEditedAt: 2,
-        })
-      )
     );
   });
 });
@@ -225,7 +143,7 @@ describe('plcs/{plcId}/notes — Wave-2 fields', () => {
 // Todos — new fields + soft-delete
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/todos — Wave-2 fields (now legacy: create denied)', () => {
+describe('plcs/{plcId}/todos — Wave-2 fields (legacy, writes are server-only)', () => {
   const actionItem = (overrides: Record<string, unknown> = {}) => ({
     id: TODO_ID,
     text: 'Reteach Q3 to period 2',
@@ -239,13 +157,10 @@ describe('plcs/{plcId}/todos — Wave-2 fields (now legacy: create denied)', () 
     ...overrides,
   });
 
-  it('denies creating a todo with assignee/due/meetingId', async () => {
+  it('denies creating a todo, assigned or unassigned', async () => {
     await assertFails(
       setDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), actionItem())
     );
-  });
-
-  it('denies creating a todo with null assignee/due (unassigned)', async () => {
     await assertFails(
       setDoc(
         doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
@@ -254,16 +169,7 @@ describe('plcs/{plcId}/todos — Wave-2 fields (now legacy: create denied)', () 
     );
   });
 
-  it('rejects a non-int dueAt (create denied regardless)', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
-        actionItem({ dueAt: 'tomorrow' })
-      )
-    );
-  });
-
-  it('denies reassigning a todo (only deletedAt may be updated)', async () => {
+  it('denies reassigning a todo or archiving it', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
@@ -276,27 +182,9 @@ describe('plcs/{plcId}/todos — Wave-2 fields (now legacy: create denied)', () 
         deletedAt: serverTimestamp(),
       })
     );
-  });
-
-  it('member can soft-delete (archive) an existing todo via deletedAt only', async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(ctx.firestore(), `plcs/${PLC_ID}/todos/${TODO_ID}`),
-        actionItem()
-      );
-    });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
         deletedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('rejects an extra unknown field (schema lock-down; create denied anyway)', async () => {
-    await assertFails(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/todos/${TODO_ID}`), {
-        ...actionItem(),
-        priority: 'high',
       })
     );
   });

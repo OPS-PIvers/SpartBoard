@@ -9,11 +9,7 @@
 //   (1) READ gate — a member keyed in the canonical `members` map OR in the
 //       denormalized `memberUids` index may read; a non-member (in neither) is
 //       denied.
-//   (2) CREATE — a lead-only sole-member `members` map at role 'lead' succeeds;
-//       a create carrying a SECOND lead, or with mismatched memberUids/leadUid,
-//       is denied; optional tenancy fields (`orgId`/`buildingId`) succeed as
-//       both null and string; createdAt accepts a Firestore Timestamp AND a
-//       legacy int (dual-accept, §3.2).
+//   (2) CREATE — refused for every client (plcSettingsV1 creates the root).
 //   (3) transferLead (isTransferringPlcLead) — lead/coLead may move the crown
 //       (outgoing lead → member, incoming → lead, leadUid mirror moves in
 //       lockstep); plain member/viewer cannot; a transfer that leaves zero or
@@ -24,8 +20,7 @@
 //   (5) accept-invite + leave — both still pass AND now maintain the members
 //       map (append self / flip self to 'removed') in lockstep with the
 //       denormalized indexes.
-//   (6) updatedAt dual-accept — accepted as both a Firestore Timestamp and a
-//       legacy int on the mutating branches.
+//   (6) broad lead edits (rename, updatedAt) — refused (plcSettingsV1 does them).
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -258,189 +253,66 @@ describe('plcs/{plcId} read — members-map gate', () => {
 // (2) CREATE — lead-only sole-member map; tenancy + timestamp dual-accept
 // ===========================================================================
 
-describe('plcs/{plcId} create — lead-only sole-member members map', () => {
+describe('plcs/{plcId} create — refused (plcSettingsV1 creates the root)', () => {
   const newDoc = (id: string) => doc(staffDb(LEAD_UID), `plcs/${id}`);
-
-  it('creates with the sole creator at role lead + mirrored indexes', async () => {
-    await assertSucceeds(
-      setDoc(newDoc('plc-create-ok'), {
-        name: 'New PLC',
-        leadUid: LEAD_UID,
-        memberUids: [LEAD_UID],
-        memberEmails: { [LEAD_UID]: LEAD_EMAIL },
-        members: {
-          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
-        },
-        orgId: null,
-        buildingId: null,
-        createdAt: 1,
-        updatedAt: 1,
-      })
-    );
+  const soleLead = (extra: Record<string, unknown> = {}) => ({
+    name: 'New PLC',
+    leadUid: LEAD_UID,
+    memberUids: [LEAD_UID],
+    memberEmails: { [LEAD_UID]: LEAD_EMAIL },
+    members: { [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead') },
+    createdAt: 1,
+    updatedAt: 1,
+    ...extra,
   });
 
-  it('rejects a create whose members map carries a SECOND lead', async () => {
-    // Two-key members map (and thus two leads) violates the sole-member create
-    // invariant: members.keys() must be exactly [creator].
+  it('a district-staff creator can no longer create a sole-member team directly', async () => {
+    await assertFails(setDoc(newDoc('plc-create-ok'), soleLead()));
+  });
+
+  it('with tenancy fields as null or strings, and ints or timestamps for time fields', async () => {
     await assertFails(
-      setDoc(newDoc('plc-create-second-lead'), {
-        name: 'Two-lead PLC',
-        leadUid: LEAD_UID,
-        memberUids: [LEAD_UID, COLEAD_UID],
-        memberEmails: {
-          [LEAD_UID]: LEAD_EMAIL,
-          [COLEAD_UID]: COLEAD_EMAIL,
-        },
-        members: {
-          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
-          [COLEAD_UID]: member(COLEAD_UID, COLEAD_EMAIL, 'lead'),
-        },
-        createdAt: 1,
-        updatedAt: 1,
-      })
+      setDoc(
+        newDoc('plc-null-tenancy'),
+        soleLead({ orgId: null, buildingId: null })
+      )
     );
-  });
-
-  it('rejects a create whose memberUids does not match [creator]', async () => {
-    // memberUids carries an extra uid that is not the sole creator.
     await assertFails(
-      setDoc(newDoc('plc-create-bad-uids'), {
-        name: 'Mismatched memberUids PLC',
-        leadUid: LEAD_UID,
-        memberUids: [LEAD_UID, MEMBER_UID],
-        memberEmails: {
-          [LEAD_UID]: LEAD_EMAIL,
-          [MEMBER_UID]: MEMBER_EMAIL,
-        },
-        members: {
-          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
-        },
-        createdAt: 1,
-        updatedAt: 1,
-      })
+      setDoc(
+        newDoc('plc-str-tenancy'),
+        soleLead({ orgId: 'orono', buildingId: 'b1' })
+      )
     );
-  });
-
-  it('rejects a create whose leadUid is not the creator', async () => {
-    // leadUid points at another uid — the creator must be the lead.
     await assertFails(
-      setDoc(newDoc('plc-create-bad-lead'), {
-        name: 'Wrong-lead PLC',
-        leadUid: MEMBER_UID,
-        memberUids: [LEAD_UID],
-        memberEmails: { [LEAD_UID]: LEAD_EMAIL },
-        members: {
-          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
-        },
-        createdAt: 1,
-        updatedAt: 1,
-      })
+      setDoc(
+        newDoc('plc-ts'),
+        soleLead({ createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+      )
     );
   });
 
-  it('rejects a create whose sole member is not role lead', async () => {
+  it('a create carrying a second lead is refused too', async () => {
     await assertFails(
-      setDoc(newDoc('plc-create-member-role'), {
-        name: 'Non-lead sole member PLC',
-        leadUid: LEAD_UID,
-        memberUids: [LEAD_UID],
-        memberEmails: { [LEAD_UID]: LEAD_EMAIL },
-        members: {
-          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'member'),
-        },
-        createdAt: 1,
-        updatedAt: 1,
-      })
+      setDoc(
+        newDoc('plc-create-second-lead'),
+        soleLead({
+          memberUids: [LEAD_UID, COLEAD_UID],
+          memberEmails: { [LEAD_UID]: LEAD_EMAIL, [COLEAD_UID]: COLEAD_EMAIL },
+          members: {
+            [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
+            [COLEAD_UID]: member(COLEAD_UID, COLEAD_EMAIL, 'lead'),
+          },
+        })
+      )
     );
   });
 
-  it('creates with optional orgId/buildingId omitted', async () => {
-    await assertSucceeds(
-      setDoc(newDoc('plc-create-no-tenancy'), {
-        name: 'No-tenancy PLC',
-        leadUid: LEAD_UID,
-        memberUids: [LEAD_UID],
-        memberEmails: { [LEAD_UID]: LEAD_EMAIL },
-        members: {
-          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
-        },
-        createdAt: 1,
-        updatedAt: 1,
-      })
-    );
-  });
-
-  it('creates with orgId/buildingId as null', async () => {
-    await assertSucceeds(
-      setDoc(newDoc('plc-create-null-tenancy'), {
-        name: 'Null-tenancy PLC',
-        leadUid: LEAD_UID,
-        memberUids: [LEAD_UID],
-        memberEmails: { [LEAD_UID]: LEAD_EMAIL },
-        members: {
-          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
-        },
-        orgId: null,
-        buildingId: null,
-        createdAt: 1,
-        updatedAt: 1,
-      })
-    );
-  });
-
-  it('creates with orgId/buildingId as strings', async () => {
-    await assertSucceeds(
-      setDoc(newDoc('plc-create-string-tenancy'), {
-        name: 'String-tenancy PLC',
-        leadUid: LEAD_UID,
-        memberUids: [LEAD_UID],
-        memberEmails: { [LEAD_UID]: LEAD_EMAIL },
-        members: {
-          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
-        },
-        orgId: 'org-1',
-        buildingId: 'bldg-1',
-        createdAt: 1,
-        updatedAt: 1,
-      })
-    );
-  });
-
-  it('creates with createdAt/updatedAt as legacy ints (dual-accept)', async () => {
-    await assertSucceeds(
-      setDoc(newDoc('plc-create-int-ts'), {
-        name: 'Int-TS PLC',
-        leadUid: LEAD_UID,
-        memberUids: [LEAD_UID],
-        memberEmails: { [LEAD_UID]: LEAD_EMAIL },
-        members: {
-          [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead', 'active', 1),
-        },
-        createdAt: 1735689600000,
-        updatedAt: 1735689600000,
-      })
-    );
-  });
-
-  it('creates with createdAt/updatedAt as Firestore Timestamps (dual-accept)', async () => {
-    await assertSucceeds(
-      setDoc(newDoc('plc-create-ts'), {
-        name: 'Server-TS PLC',
-        leadUid: LEAD_UID,
-        memberUids: [LEAD_UID],
-        memberEmails: { [LEAD_UID]: LEAD_EMAIL },
-        members: {
-          [LEAD_UID]: member(
-            LEAD_UID,
-            LEAD_EMAIL,
-            'lead',
-            'active',
-            serverTimestamp()
-          ),
-        },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      })
+  it('a non-staff user cannot create a team either', async () => {
+    await assertFails(
+      setDoc(
+        doc(asNonMember(), 'plcs/plc-outsider'),
+        soleLead({ leadUid: NON_MEMBER_UID })
+      )
     );
   });
 });
@@ -755,10 +627,8 @@ describe('plcs/{plcId} update — changeRole', () => {
     );
   });
 
-  it('the lead can still rename the PLC via the broad branch (members untouched)', async () => {
-    // plcBroadMembersOk() short-circuits to true when members is untouched, so
-    // a plain rename still passes.
-    await assertSucceeds(
+  it('the lead can no longer rename the PLC via the broad branch (plcSettingsV1 does)', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         name: 'Renamed Team',
         updatedAt: 2,
@@ -1117,32 +987,18 @@ describe('plcs/{plcId} update — leave (members-map maintenance)', () => {
 // (6) updatedAt dual-accept — int AND timestamp on the broad lead branch
 // ===========================================================================
 
-describe('plcs/{plcId} update — updatedAt dual-accept (broad lead branch)', () => {
-  it('the lead can bump updatedAt with a legacy int', async () => {
-    await assertSucceeds(
+describe('plcs/{plcId} update — broad lead edits refused (plcSettingsV1 does them)', () => {
+  it('the lead can no longer bump updatedAt with an int or a Timestamp', async () => {
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         name: 'Renamed with int ts',
         updatedAt: 1735689600000,
       })
     );
-  });
-
-  it('the lead can bump updatedAt with a Firestore Timestamp', async () => {
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
         name: 'Renamed with server ts',
         updatedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('rejects a non-numeric, non-timestamp updatedAt', async () => {
-    // plcUpdatedAtOk() requires updatedAt to be a timestamp OR int; a string
-    // fails every mutating branch.
-    await assertFails(
-      updateDoc(doc(asLead(), `plcs/${PLC_ID}`), {
-        name: 'Renamed with bad ts',
-        updatedAt: 'not-a-timestamp',
       })
     );
   });
