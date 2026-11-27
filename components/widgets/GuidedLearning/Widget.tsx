@@ -8,7 +8,7 @@ import React, {
   lazy,
   Suspense,
 } from 'react';
-import { doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
   AssignmentAudience,
@@ -50,6 +50,7 @@ import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
 import {
   finishPendingMove,
   createHiddenHelpItem,
+  HELP_ITEMS_COLLECTION,
   isPendingHelpCenterMove,
   moveSetToHelpCenter,
   type MoveOutcome,
@@ -1744,6 +1745,12 @@ const TeacherGuidedLearningWidget: React.FC<{
                               // A guard keeps tour.updatedAt, the revision the board editor saves against.
                               await saveBuildingSet(tour, {
                                 expectedUpdatedAt: undefined,
+                              }).catch(async (err: unknown) => {
+                                // Best-effort: drop the filed item so retries leave no orphans.
+                                await deleteDoc(
+                                  doc(db, HELP_ITEMS_COLLECTION, filed.id)
+                                ).catch(() => undefined);
+                                throw err;
                               });
                               noteFiledHelpItem(tour.id, filed.id);
                               requestEditTour({

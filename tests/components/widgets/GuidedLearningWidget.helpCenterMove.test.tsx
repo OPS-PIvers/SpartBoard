@@ -1,6 +1,7 @@
 // The GL widget moves sets into the Help Center and finishes tagged moves when the library loads.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
+import { deleteDoc } from 'firebase/firestore';
 
 import { GuidedLearningWidget } from '@/components/widgets/GuidedLearning/Widget';
 import type { GuidedLearningManagerProps } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
@@ -21,7 +22,8 @@ vi.mock('@/config/firebase', () => ({
 }));
 
 vi.mock('firebase/firestore', () => ({
-  doc: vi.fn(),
+  doc: vi.fn((_db: unknown, _c: string, id?: string) => ({ id })),
+  deleteDoc: vi.fn(() => Promise.resolve()),
   updateDoc: vi.fn(() => Promise.resolve()),
   writeBatch: vi.fn(),
 }));
@@ -320,7 +322,42 @@ describe('GuidedLearningWidget Help Center moves', () => {
       expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error')
     );
     window.removeEventListener(TOUR_EDIT_EVENT, edits);
+    expect(helpItems.createHiddenHelpItem).toHaveBeenCalledTimes(1);
     expect(glHook.saveBuildingSet).not.toHaveBeenCalled();
+    expect(edits).not.toHaveBeenCalled();
+    helpItems.createHiddenHelpItem.mockReset();
+  });
+
+  it('deletes the filed Help Center item when saving the converted tour fails', async () => {
+    vi.mocked(deleteDoc).mockClear();
+    glHook.loadBuildingSet.mockResolvedValue({
+      id: 'b-3',
+      title: 'Seating chart guide',
+      imageUrls: [],
+      steps: [],
+      mode: 'structured',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    helpItems.createHiddenHelpItem.mockResolvedValue({ ...item, id: 'item-o' });
+    glHook.saveBuildingSet.mockRejectedValueOnce(new Error('offline'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const edits = vi.fn();
+    window.addEventListener(TOUR_EDIT_EVENT, edits);
+    render(<GuidedLearningWidget widget={widget} />);
+    await waitFor(() => expect(captured.props).toBeDefined());
+    addToast.mockClear();
+    void captured.props?.onConvertToLiveTour?.('b-3', undefined, {
+      id: 'b-3',
+      updatedAt: 1,
+    } as GuidedLearningBuildingSetIndex);
+    await waitFor(() =>
+      expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error')
+    );
+    window.removeEventListener(TOUR_EDIT_EVENT, edits);
+    expect(deleteDoc).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'item-o' })
+    );
     expect(edits).not.toHaveBeenCalled();
   });
 });
