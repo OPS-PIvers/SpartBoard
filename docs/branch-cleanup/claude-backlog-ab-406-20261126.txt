@@ -1,0 +1,1 @@
+claude/backlog-ab-406-20261126 (AB-406: project upload archive no longer recreates an upload deleted mid-archive)

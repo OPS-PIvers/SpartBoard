@@ -8,7 +8,7 @@ import React, {
   lazy,
   Suspense,
 } from 'react';
-import { doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
   AssignmentAudience,
@@ -50,6 +50,7 @@ import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
 import {
   finishPendingMove,
   createHiddenHelpItem,
+  HELP_ITEMS_COLLECTION,
   isPendingHelpCenterMove,
   moveSetToHelpCenter,
   type MoveOutcome,
@@ -1734,24 +1735,24 @@ const TeacherGuidedLearningWidget: React.FC<{
                                 }),
                                 helpCenter: true,
                               };
+                              // File first so a failure leaves no tour hidden from every library.
+                              const author = helpAuthor();
+                              if (!author) throw new Error('Not signed in');
+                              const filed = await createHiddenHelpItem(
+                                tour,
+                                author
+                              );
                               // A guard keeps tour.updatedAt, the revision the board editor saves against.
                               await saveBuildingSet(tour, {
                                 expectedUpdatedAt: undefined,
+                              }).catch(async (err: unknown) => {
+                                // Best-effort: drop the filed item so retries leave no orphans.
+                                await deleteDoc(
+                                  doc(db, HELP_ITEMS_COLLECTION, filed.id)
+                                ).catch(() => undefined);
+                                throw err;
                               });
-                              const author = helpAuthor();
-                              const filed = author
-                                ? await createHiddenHelpItem(
-                                    tour,
-                                    author
-                                  ).catch((err: unknown) => {
-                                    console.error(
-                                      '[GuidedLearning] Filing the tour failed:',
-                                      err
-                                    );
-                                    return null;
-                                  })
-                                : null;
-                              if (filed) noteFiledHelpItem(tour.id, filed.id);
+                              noteFiledHelpItem(tour.id, filed.id);
                               requestEditTour({
                                 setId: tour.id,
                                 origin: 'widget',

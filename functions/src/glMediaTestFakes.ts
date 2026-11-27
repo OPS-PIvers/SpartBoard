@@ -80,10 +80,12 @@ export function createFakeDb(docs: Record<string, Data>) {
       const found = list();
       return Promise.resolve({ docs: found, empty: found.length === 0 });
     },
-    where: (field, _op, value) =>
+    where: (field, op, value) =>
       query(() =>
         list().filter((d) => {
           const arr = d.get(field);
+          if (op === '>=')
+            return typeof arr === 'number' && arr >= Number(value);
           return Array.isArray(arr) ? arr.includes(value) : arr === value;
         })
       ),

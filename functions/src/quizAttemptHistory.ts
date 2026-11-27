@@ -16,6 +16,7 @@ import {
   trustedTurnInMs,
 } from './gradebook/gradeRowMath';
 import type { IndexAttempt } from './gradebook/types';
+import { PAPER_PRIVATE_SUBCOLLECTION } from './paperWrittenTypes';
 
 type Firestore = admin.firestore.Firestore;
 type Doc = Record<string, unknown>;
@@ -246,6 +247,30 @@ async function clearCarriedGrades(
   });
 }
 
+/** A retake starts its paper answers fresh, so attempt 1's teacher edits and held rescans must not block attempt 2's scan. */
+async function clearCarriedPaperEdits(
+  db: Firestore,
+  w: AttemptWrite,
+  before: Doc
+): Promise<void> {
+  const ref = responseRef(db, w.sessionId, w.responseKey);
+  await db.runTransaction(async (tx) => {
+    const fresh = (await tx.get(ref)).data();
+    if (!fresh || isCompleted(fresh) || fresh.unlocked === true) return;
+    if (fresh.completedAttempts !== before.completedAttempts) return;
+    const privates = await tx.get(ref.collection(PAPER_PRIVATE_SUBCOLLECTION));
+    const del = admin.firestore.FieldValue.delete();
+    for (const d of privates.docs) {
+      const p = d.data();
+      if (!p) continue;
+      if (p.editedAt === undefined && p.newerScan === undefined) continue;
+      // An edit after this event belongs to the new attempt.
+      if (typeof p.updatedAt === 'number' && p.updatedAt > w.eventAt) continue;
+      tx.update(d.ref, { editedAt: del, editedBy: del, newerScan: del });
+    }
+  });
+}
+
 /** A removed student's attempts follow their `archived_responses` copy; otherwise they go. */
 async function moveRemovedAttempts(
   db: Firestore,
@@ -428,8 +453,10 @@ export async function applyAttemptWrite(
         // Grades leave the live doc only once a copy holds them.
         if (
           (await saveAttempt(db, w, action.data, action.n, true)) !== 'skipped'
-        )
+        ) {
           await clearCarriedGrades(db, w, action.data);
+          await clearCarriedPaperEdits(db, w, action.data);
+        }
         return;
       case 'removed':
         await moveRemovedAttempts(db, w);

@@ -147,7 +147,16 @@ import {
   type VersionImportBuild,
 } from '@/utils/quizDocumentImport/versionPlan';
 import { getRubricDoc, saveRubricDoc } from '@/hooks/useRubrics';
-import { applyRubricEdit, sameRubricContent } from '@/utils/rubricPoints';
+import {
+  applyRubricEdit,
+  RUBRIC_SCORES_FAILED,
+  RubricSavedError,
+  updateLibraryRubrics,
+} from '@/utils/rubricPoints';
+import {
+  refreshRubricPeers,
+  writeRubricToFrozenCopy,
+} from '@/hooks/quizRubricRefresh';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -3013,6 +3022,19 @@ const TeacherQuizWidget: React.FC<{
               throw new Error(
                 `Both versions of this rubric must total ${requiredTotal} points.`
               );
+            const before = inQuiz.before ?? shownNow.before;
+            const frozenCopies = {
+              load: loadQuizData,
+              save: saveDriveSnapshot,
+            };
+            // The open assignment's frozen copy grades it on reload and publish, so it takes the edit first.
+            const activeFrozenId = assignmentFrozenFileId(activeAssignment);
+            if (before && activeFrozenId && activeFrozenId !== meta.driveFileId)
+              await writeRubricToFrozenCopy(
+                activeFrozenId,
+                rubric,
+                frozenCopies
+              );
             if (inQuiz.changed) {
               await saveQuiz(
                 {
@@ -3023,7 +3045,6 @@ const TeacherQuizWidget: React.FC<{
                 meta.driveFileId
               );
             }
-            const before = inQuiz.before ?? shownNow.before;
             const libraryIds = new Set([
               ...inQuiz.libraryIds,
               ...shownNow.libraryIds,
@@ -3037,28 +3058,36 @@ const TeacherQuizWidget: React.FC<{
                   }
                 : prev
             );
-            const library = await Promise.allSettled(
-              [...libraryIds].map(async (id) => {
-                const current = await getRubricDoc(user.uid, id);
-                // Missing (deleted or another teacher's) or edited since: leave the library alone.
-                if (!current) return 'skipped';
-                if (!before || !sameRubricContent(current, before))
-                  return 'kept';
-                await saveRubricDoc(user.uid, {
-                  ...rubric,
-                  id,
-                  createdAt: current.createdAt,
-                });
-                return 'saved';
-              })
+            // Every other assignment of this quiz, ended or frozen, follows the new total.
+            const peersOk = before
+              ? await refreshRubricPeers(assignments, {
+                  quizId: meta.id,
+                  libraryDriveFileId: meta.driveFileId,
+                  activeAssignmentId: config.activeAssignmentId,
+                  teacherUid: user.uid,
+                  rubric,
+                  before,
+                  frozenCopies,
+                  // Throws instead of a toast per peer; one combined failure shows below.
+                  loadGradingQuiz: (a) =>
+                    loadAssignmentAnswerKeyQuiz(
+                      meta.driveFileId,
+                      assignmentFrozenFileId(a),
+                      { loadQuizData, loadBankContentsForQuiz },
+                      keyFixOptionsFor(a)
+                    ),
+                })
+              : true;
+            const { kept: libraryKept } = await updateLibraryRubrics(
+              [...libraryIds],
+              rubric,
+              before,
+              {
+                get: (id) => getRubricDoc(user.uid, id),
+                save: (next) => saveRubricDoc(user.uid, next),
+              }
             );
-            const libraryKept = library.some(
-              (r) => r.status === 'fulfilled' && r.value === 'kept'
-            );
-            if (library.some((r) => r.status === 'rejected'))
-              throw new Error(
-                'Saved to this quiz, but your library rubric did not update.'
-              );
+            if (!peersOk) throw new RubricSavedError(RUBRIC_SCORES_FAILED);
             addToast(
               libraryKept
                 ? 'Rubric saved to this quiz. Your library copy has newer edits, so it was left as is.'
@@ -3259,13 +3288,26 @@ const TeacherQuizWidget: React.FC<{
           // type-narrowed to exclude the targeting fields — a future
           // targeting field added to the patch can't silently leak into
           // `updateAssignmentSettings`.
+          // Sync both docs to the Tab warnings value the modal showed (the live session's).
+          const shownTab =
+            withLiveTabWarnings(target).sessionOptions?.tabWarningsEnabled;
           const {
             rosterIds,
             periodName: _periodName,
             periodNames: _periodNames,
             periodAccessRows,
             ...settingsPatch
-          } = patch;
+          } = shownTab !== undefined &&
+          shownTab !== target.sessionOptions?.tabWarningsEnabled &&
+          !('tabWarningsEnabled' in (patch.sessionOptionEdits ?? {}))
+            ? {
+                ...patch,
+                sessionOptionEdits: {
+                  ...patch.sessionOptionEdits,
+                  tabWarningsEnabled: shownTab,
+                },
+              }
+            : patch;
           // These are two separate writeBatch.commit()s, not one
           // transaction. To keep the non-atomic window benign, apply the
           // secondary settings FIRST and the class targeting LAST. Targeting

@@ -43,6 +43,14 @@ export default tseslint.config(
     ],
   },
   js.configs.recommended,
+  // ESLint 10 added these to recommended; off until AB-422 fixes the existing hits.
+  {
+    rules: {
+      'no-unassigned-vars': 'off',
+      'no-useless-assignment': 'off',
+      'preserve-caught-error': 'off',
+    },
+  },
   ...tseslint.configs.recommendedTypeChecked,
   {
     files: ['src/**/*.ts'],

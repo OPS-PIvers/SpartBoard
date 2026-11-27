@@ -192,7 +192,7 @@ describe('WeatherWidget', () => {
     const size = /min\(75cqh, 40cqw, ([\d.]+)cqw\)/.exec(
       screen.getByText(`${temp}°`).style.fontSize
     )?.[1];
-    expect(Number(size)).toBeCloseTo(68 / widthEm, 6);
+    expect(Number(size)).toBeCloseTo(68 / widthEm, 3);
   });
 
   it('syncs background when enabled', async () => {

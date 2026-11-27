@@ -23,6 +23,7 @@ import type {
 } from '@/types';
 import { useRubricLevelOrder } from '@/hooks/useRubricLevelOrder';
 import { useRubricGradingPrefs } from '@/hooks/useRubricGradingPrefs';
+import { openCriteriaMemory } from '@/hooks/useRubricOpenCriteriaMemory';
 import {
   orderRubricLevels,
   rubricMaxPoints,
@@ -68,9 +69,6 @@ const LEVEL_CELL: Record<number, string> = {
 };
 
 const ptsLabel = (points: number) => `${points} pt${points === 1 ? '' : 's'}`;
-
-// Which criteria a teacher left open, per rubric, so the next student opens the same way.
-const openCriteriaMemory = new Map<string, Set<string>>();
 
 const scrollParentOf = (el: HTMLElement): HTMLElement | null => {
   for (let p = el.parentElement; p; p = p.parentElement) {
@@ -207,7 +205,9 @@ export const RubricGradingPanel: React.FC<RubricScoringPanelProps> = ({
   const tapLevel = (criterion: RubricCriterion, level: RubricLevel) => {
     const next = new Map(byCriterion);
     const wasScored = next.has(criterion.id);
-    if (next.get(criterion.id)?.levelId === level.id) {
+    const current = next.get(criterion.id);
+    // A score off the level's points (a capped or legacy typed score) snaps to the level instead of clearing.
+    if (current?.levelId === level.id && current.points === level.points) {
       next.delete(criterion.id);
     } else {
       const note = noteFor(criterion.id);

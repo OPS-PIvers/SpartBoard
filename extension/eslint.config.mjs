@@ -6,13 +6,26 @@ import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals';
+import { createRequire } from 'module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+// eslint-plugin-react 7.37 calls APIs ESLint 10 removed: 'detect' crashes, and so would jsx-filename-extension, forward-ref-uses-ref and the jsx spacing rules.
+const reactVersion = createRequire(import.meta.url)(
+  'react/package.json'
+).version;
 
 // The extension's own pass (D4): its tsconfig carries the Chrome types the root program doesn't have.
 export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**', '**/*.config.mjs'] },
   js.configs.recommended,
+  // ESLint 10 added these to recommended; off until AB-422 fixes the existing hits.
+  {
+    rules: {
+      'no-unassigned-vars': 'off',
+      'no-useless-assignment': 'off',
+      'preserve-caught-error': 'off',
+    },
+  },
   ...tseslint.configs.recommendedTypeChecked,
   {
     files: ['**/*.{ts,tsx}'],
@@ -24,7 +37,7 @@ export default tseslint.config(
       globals: { ...globals.browser, chrome: 'readonly' },
     },
     plugins: { react: reactPlugin, 'react-hooks': reactHooksPlugin },
-    settings: { react: { version: 'detect' } },
+    settings: { react: { version: reactVersion } },
     rules: {
       ...reactPlugin.configs.recommended.rules,
       ...reactPlugin.configs['jsx-runtime'].rules,

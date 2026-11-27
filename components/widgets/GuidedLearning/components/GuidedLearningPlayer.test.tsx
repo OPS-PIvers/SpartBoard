@@ -437,7 +437,7 @@ describe('GuidedLearningPlayer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /next step/i }));
     // Legacy sets reset per step, but with an animated transition — never {}.
-    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(layer.style.transform).toBe('scale(1) translate(0px)');
     expect(layer.style.transition).toContain('transform');
     // No reset-view button on legacy sets.
     expect(
@@ -494,7 +494,7 @@ describe('GuidedLearningPlayer', () => {
 
     // A step without pan-zoom animates back to identity.
     fireEvent.click(screen.getByRole('button', { name: /next step/i }));
-    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(layer.style.transform).toBe('scale(1) translate(0px)');
     expect(layer.style.transition).toContain('transform');
     expect(
       screen.queryByRole('button', { name: /reset view/i })
@@ -533,7 +533,7 @@ describe('GuidedLearningPlayer', () => {
     expect(layer.style.transform).toContain('scale(3)');
 
     fireEvent.click(screen.getByRole('button', { name: /reset view/i }));
-    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(layer.style.transform).toBe('scale(1) translate(0px)');
     expect(
       screen.queryByRole('button', { name: /reset view/i })
     ).not.toBeInTheDocument();
@@ -657,14 +657,14 @@ describe('GuidedLearningPlayer', () => {
       throw new Error('Expected canvas container');
     container.focus();
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(layer.style.transform).toBe('scale(1) translate(0px)');
     expect(
       screen.queryByRole('button', { name: /reset view/i })
     ).not.toBeInTheDocument();
 
     // Clicking a non-pan-zoom pin must not surprise-re-zoom.
     fireEvent.click(screen.getByRole('button', { name: /step 2/i }));
-    expect(layer.style.transform).toBe('scale(1) translate(0px, 0px)');
+    expect(layer.style.transform).toBe('scale(1) translate(0px)');
     expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
   });
 

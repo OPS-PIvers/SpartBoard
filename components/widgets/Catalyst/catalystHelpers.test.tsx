@@ -86,10 +86,9 @@ describe('catalystHelpers', () => {
 
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg).toHaveStyle({
-        width: size,
-        height: size,
-      });
+      // jsdom can't resolve cqmin, so check the inline style the browser applies.
+      expect(svg?.style.width).toBe(size);
+      expect(svg?.style.height).toBe(size);
     });
   });
 });

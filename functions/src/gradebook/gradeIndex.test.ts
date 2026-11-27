@@ -1035,6 +1035,12 @@ describe('Resource sessions', () => {
       sessionWriteMatters({ workKind: 'work' }, { workKind: 'resource' })
     ).toBe(true);
   });
+
+  it('recomputes the session when a rubric edit refreshes its points', () => {
+    expect(
+      sessionWriteMatters({ rubricRefreshedAt: 1 }, { rubricRefreshedAt: 2 })
+    ).toBe(true);
+  });
 });
 
 describe('Mini App results (MINI_APP_RESULTS.md D13)', () => {

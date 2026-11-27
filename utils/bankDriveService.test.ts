@@ -19,6 +19,7 @@ function fakeDrive(store: Map<string, QuizData>) {
   });
   const drive: QuizDriveLike = {
     saveQuiz,
+    patchQuiz: vi.fn(),
     loadQuiz,
     deleteQuizFile,
     importFromGoogleSheet: vi.fn(),

@@ -1,0 +1,1 @@
+claude/project-thread-cyxrj0-i18n27 (i18next 27 and react-i18next 18)

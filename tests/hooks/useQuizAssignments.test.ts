@@ -1474,7 +1474,7 @@ describe('useQuizAssignments - updateAssignmentSettings', () => {
 
     await act(async () => {
       await result.current.updateAssignmentSettings(ASSIGNMENT_ID, {
-        sessionOptions: { blockCopyPaste: true },
+        sessionOptionEdits: { blockCopyPaste: true },
       });
     });
 
@@ -1492,7 +1492,7 @@ describe('useQuizAssignments - updateAssignmentSettings', () => {
 
     await act(async () => {
       await result.current.updateAssignmentSettings(ASSIGNMENT_ID, {
-        sessionOptions: { handRaiseEnabled: true, blockCopyPaste: true },
+        sessionOptionEdits: { handRaiseEnabled: true, blockCopyPaste: true },
       });
     });
 
