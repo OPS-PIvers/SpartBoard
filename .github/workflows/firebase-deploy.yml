@@ -69,6 +69,11 @@ jobs:
               fi
             done
           fi
+          if [[ -n "$head2" && "$reuse" != "true" ]]; then
+            # Files main has that the PR head lacks (or the reverse): the shipped tree was never tested as a PR.
+            echo "Merge tree differs from PR head ${head2}:" | tee -a "$GITHUB_STEP_SUMMARY"
+            git diff --stat "$head2" HEAD | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
           [[ "$reuse" == "true" ]] || echo "No validated identical tree; running every check."
           echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
 
@@ -169,7 +174,7 @@ jobs:
   # Functions suite (~5s) plus the merged-shard count guard from scripts/checkTestCounts.mjs.
   test-counts:
     if: github.ref == 'refs/heads/main'
-    needs: test
+    needs: [test, rules]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6.0.3
@@ -179,15 +184,27 @@ jobs:
           pattern: vitest-report-shard-*
           path: .vitest-reports/shards
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vitest-rules-report-shard-*
+          path: .vitest-reports/rules-shards
+          merge-multiple: true
       - run: pnpm run test:merge-reports .vitest-reports/root.json .vitest-reports/shards/root-shard-*.json
+      - run: pnpm run test:merge-reports .vitest-reports/rules.json .vitest-reports/rules-shards/rules-shard-*.json
       - run: pnpm -C functions test
       - run: pnpm run test:counts
 
   # test:all doesn't include test:rules; without this a firestore.rules regression could reach prod unverified.
+  # Sharded like the dev deploy; unsharded it ran 11-17 min and was the release's critical path.
   rules:
     needs: preflight
     if: github.ref == 'refs/heads/main' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
+    name: rules (shard ${{ matrix.shard }}/4)
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v6.0.3
       - uses: ./.github/actions/setup
@@ -207,7 +224,13 @@ jobs:
         if: vars.RULES_MINIFY != '0'
         run: pnpm exec firebase setup:emulators:firestore && node scripts/minifyRules.mjs firestore.rules --write
       - name: Run Firestore rules tests
-        run: pnpm run test:rules
+        run: RULES_SHARD=${{ matrix.shard }}/4 pnpm run test:rules
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vitest-rules-report-shard-${{ matrix.shard }}
+          path: .vitest-reports/rules-shard-${{ matrix.shard }}.json
+          retention-days: 1
 
   build:
     if: github.ref == 'refs/heads/main'

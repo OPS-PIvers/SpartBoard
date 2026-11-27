@@ -57,15 +57,17 @@ Earlier versions are also listed in the Firebase console under Hosting > Release
 
 ## 6. Carry it back to dev-paul
 
-Without this, the next release overwrites the fix.
+Merge main back, don't cherry-pick. Main must stay an ancestor of dev-paul. Otherwise the next release's merge ships a tree its PR never tested, and the prod deploy reruns every check.
 
 ```bash
 git fetch origin
 git switch -c hotfix/<short-slug>-to-dev origin/dev-paul
-git cherry-pick <hotfix commit sha>
+git merge origin/main   # resolve conflicts keeping both sides' intent
 git push -u origin hotfix/<short-slug>-to-dev
-gh pr create --base dev-paul --title "hotfix: <what broke> (back to dev-paul)" --body "Cherry-pick of #<hotfix PR>."
+gh pr create --base dev-paul --title "hotfix: <what broke> (back to dev-paul)" --body "Merges main (#<hotfix PR>) back into dev-paul."
 ```
+
+Merge that PR with a merge commit (`gh pr merge --merge`), never squash, or main stops being an ancestor again.
 
 ## 7. Tell teachers only if they noticed
 
