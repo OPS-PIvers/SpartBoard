@@ -256,6 +256,10 @@ const response = (id: string) =>
     grading: { w1: { pointsAwarded: number } };
   };
 
+const points = (id: string) =>
+  (store.get(`quiz_sessions/${id}`)?.publicQuestions as QuizPublicQuestion[])[0]
+    .points;
+
 beforeEach(() => {
   store.clear();
   failRefreshFor.clear();
@@ -426,6 +430,28 @@ describe('refreshRubricForSession', () => {
     expect(response('a1').scorePoints).toBeUndefined();
   });
 
+  it('refreshes from what the session serves when the loaded quiz already holds the edit', async () => {
+    seedSession('a1');
+    // A reload after the frozen copy saved but the rest did not: the loaded quiz is already at 7.
+    await refreshRubricForSession({
+      sessionId: 'a1',
+      rubric: rubric(5),
+      before: rubric(5),
+      quiz: edited(5),
+    });
+    expect(points('a1')).toBe(7);
+    expect(response('a1').grading.w1.pointsAwarded).toBe(7);
+    expect(response('a1').scorePoints.possible).toBe(8);
+  });
+
+  it('writes nothing once the session already serves the new points', async () => {
+    seedSession('a1');
+    await rescore();
+    const after = JSON.stringify([...store.entries()]);
+    await rescore();
+    expect(JSON.stringify([...store.entries()])).toBe(after);
+  });
+
   it('writes nothing for a label-only edit', async () => {
     seedSession('a1');
     const relabeled = rubric(2);
@@ -577,6 +603,34 @@ describe('writeRubricToFrozenCopy', () => {
     expect(nextPublishKey[0].points).toBe(7);
   });
 
+  it('throws when the copy could not be patched in place, so nothing runs ahead of it', async () => {
+    drive.set('frozen', quizWith());
+    await expect(
+      writeRubricToFrozenCopy('frozen', rubric(5), {
+        ...frozenCopies,
+        save: () => Promise.reject(new Error('403')),
+      })
+    ).rejects.toThrow();
+    await expect(
+      writeRubricToFrozenCopy('frozen', rubric(5), {
+        ...frozenCopies,
+        save: () => Promise.resolve('a-new-file'),
+      })
+    ).rejects.toThrow();
+  });
+
+  it('writes a label-only edit into the copy once', async () => {
+    drive.set('frozen', quizWith());
+    const relabeled = rubric(2);
+    relabeled.criteria[0].levels[1].label = 'Strong';
+    await writeRubricToFrozenCopy('frozen', relabeled, frozenCopies);
+    expect(frozenCopies.save).toHaveBeenCalledOnce();
+    expect(
+      drive.get('frozen')?.questions[0].rubricSnapshot?.criteria[0].levels[1]
+        .label
+    ).toBe('Strong');
+  });
+
   it('leaves a copy without the question alone', async () => {
     drive.set('drawn', drawnCopy(['m1']));
     expect(
@@ -617,11 +671,6 @@ describe('refreshRubricPeers', () => {
         ),
       ...extra,
     });
-  const points = (id: string) =>
-    (
-      store.get(`quiz_sessions/${id}`)?.publicQuestions as QuizPublicQuestion[]
-    )[0].points;
-
   beforeEach(() => {
     drive.clear();
     frozenCopies.save.mockClear();
@@ -690,6 +739,29 @@ describe('refreshRubricPeers', () => {
     ).toBe(true);
     expect(JSON.stringify([...store.entries()])).toBe(before);
     expect(frozenCopies.save).not.toHaveBeenCalled();
+  });
+
+  it('skips the Firestore refresh of a frozen peer whose copy did not save', async () => {
+    seedSession('frozen');
+    drive.set('f1', quizWith());
+    const ok = await refreshRubricPeers(
+      [assignment('frozen', { frozenDriveFileId: 'f1' })],
+      {
+        quizId: 'quiz1',
+        libraryDriveFileId: 'library',
+        teacherUid: 't1',
+        rubric: rubric(5),
+        before: rubric(2),
+        frozenCopies: { ...frozenCopies, save: () => Promise.resolve('other') },
+        loadGradingQuiz: () => Promise.resolve(edited(5)),
+      }
+    );
+    expect(ok).toBe(false);
+    expect(points('frozen')).toBe(4);
+    expect(response('frozen').grading.w1.pointsAwarded).toBe(4);
+    expect(
+      store.get('quiz_sessions/frozen')?.rubricRefreshedAt
+    ).toBeUndefined();
   });
 
   it('reports a failed peer without stopping the others', async () => {

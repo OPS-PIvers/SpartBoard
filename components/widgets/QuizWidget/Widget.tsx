@@ -150,7 +150,6 @@ import { getRubricDoc, saveRubricDoc } from '@/hooks/useRubrics';
 import {
   applyRubricEdit,
   RUBRIC_SCORES_FAILED,
-  rubricPointsChanged,
   RubricSavedError,
   updateLibraryRubrics,
 } from '@/utils/rubricPoints';
@@ -3030,12 +3029,7 @@ const TeacherQuizWidget: React.FC<{
             };
             // The open assignment's frozen copy grades it on reload and publish, so it takes the edit first.
             const activeFrozenId = assignmentFrozenFileId(activeAssignment);
-            if (
-              before &&
-              rubricPointsChanged(before, rubric) &&
-              activeFrozenId &&
-              activeFrozenId !== meta.driveFileId
-            )
+            if (before && activeFrozenId && activeFrozenId !== meta.driveFileId)
               await writeRubricToFrozenCopy(
                 activeFrozenId,
                 rubric,
@@ -3074,7 +3068,14 @@ const TeacherQuizWidget: React.FC<{
                   rubric,
                   before,
                   frozenCopies,
-                  loadGradingQuiz: (a) => loadAnswerKeyQuizQuietly(meta, a),
+                  // Throws instead of a toast per peer; one combined failure shows below.
+                  loadGradingQuiz: (a) =>
+                    loadAssignmentAnswerKeyQuiz(
+                      meta.driveFileId,
+                      assignmentFrozenFileId(a),
+                      { loadQuizData, loadBankContentsForQuiz },
+                      keyFixOptionsFor(a)
+                    ),
                 })
               : true;
             const { kept: libraryKept } = await updateLibraryRubrics(

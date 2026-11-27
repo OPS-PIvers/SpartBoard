@@ -60,6 +60,9 @@ function repointRubricLevels(translated: Rubric, edited: Rubric): Rubric {
   };
 }
 
+const servedPointsDiffer = (served: Rubric | undefined, rubric: Rubric) =>
+  !served || rubricPointsChanged(served, rubric);
+
 /** Swaps an edited rubric into served questions; ids whose points follow the new total are returned. */
 export function applyRubricEditToPublicQuestions(
   questions: QuizPublicQuestion[],
@@ -71,6 +74,14 @@ export function applyRubricEditToPublicQuestions(
     const isMain = sameRubric(q.rubricSnapshot, rubric);
     const isModified = sameRubric(q.modifiedRubricSnapshot, rubric);
     if (!isMain && !isModified) return q;
+    // Already serving these points: a label-only edit, or a refresh that already landed.
+    if (
+      (!isMain ||
+        (q.points === total &&
+          !servedPointsDiffer(q.rubricSnapshot, rubric))) &&
+      (!isModified || !servedPointsDiffer(q.modifiedRubricSnapshot, rubric))
+    )
+      return q;
     const projected = projectRubricForStudents(rubric, q.rubricHidden === true);
     if (isMain) repointedIds.push(q.id);
     const localized =
@@ -173,6 +184,24 @@ export async function refreshAssignmentRubric(opts: {
   });
 }
 
+/** The first served question whose main rubric is this one. */
+async function readServedRubric(
+  sessionId: string,
+  rubric: Rubric
+): Promise<QuizPublicQuestion | undefined> {
+  const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
+  const session = (await getDoc(sessionRef)).data() as QuizSession | undefined;
+  const served =
+    session?.questionsInContent === true
+      ? ((
+          await getDoc(
+            doc(sessionRef, QUIZ_CONTENT_COLLECTION, QUIZ_CONTENT_DOC)
+          )
+        ).data()?.publicQuestions as QuizPublicQuestion[] | undefined)
+      : session?.publicQuestions;
+  return served?.find((q) => sameRubric(q.rubricSnapshot, rubric));
+}
+
 type FieldUpdate = [string | FieldPath, unknown];
 
 /** Rescores picked rubric levels, then the published score of a scored response, against the new total. */
@@ -258,10 +287,17 @@ export async function refreshRubricForSession(opts: {
   /** The quiz this assignment grades against, with the edit applied. */
   quiz: QuizData;
 }): Promise<void> {
-  if (!rubricPointsChanged(opts.before, opts.rubric)) return;
+  const served = await readServedRubric(opts.sessionId, opts.rubric);
+  // What students were graded against wins over the loaded quiz, which may already hold the edit.
+  const before = served?.rubricSnapshot ?? opts.before;
+  const stale = served
+    ? served.points !== rubricMaxPoints(opts.rubric) ||
+      servedPointsDiffer(served.rubricSnapshot, opts.rubric)
+    : rubricPointsChanged(opts.before, opts.rubric);
+  if (!stale) return;
   const results = await Promise.allSettled([
     refreshAssignmentRubric(opts),
-    rescoreSessionResponses(opts),
+    rescoreSessionResponses({ ...opts, before }),
   ]);
   const failed = results.find((r) => r.status === 'rejected');
   if (failed) throw failed.reason;
@@ -270,7 +306,7 @@ export async function refreshRubricForSession(opts: {
 /** Reads and rewrites an assignment's frozen Drive copy. */
 export interface FrozenCopyIo {
   load: (driveFileId: string) => Promise<QuizData>;
-  save: (quiz: QuizData, driveFileId: string) => Promise<unknown>;
+  save: (quiz: QuizData, driveFileId: string) => Promise<string>;
 }
 
 /** Writes the edited rubric and its total into a frozen copy's matching questions only; false when none match. */
@@ -282,7 +318,13 @@ export async function writeRubricToFrozenCopy(
   const frozen = await io.load(driveFileId);
   const edit = applyRubricEdit(frozen.questions, rubric);
   if (!edit.before) return false;
-  await io.save({ ...frozen, questions: edit.questions }, driveFileId);
+  const saved = await io.save(
+    { ...frozen, questions: edit.questions },
+    driveFileId
+  );
+  // Grading must never run ahead of the copy that grades on reload.
+  if (saved !== driveFileId)
+    throw new Error('Failed to upload quiz content to Drive');
   return true;
 }
 

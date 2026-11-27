@@ -1527,3 +1527,36 @@ describe('QuizDriveService.parseCSVQuestions', () => {
     ).toHaveLength(2);
   });
 });
+
+describe('QuizDriveService.patchQuiz', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const quiz = {
+    id: 'quiz-1',
+    title: 'Frozen',
+    questions: [],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+
+  it('patches only that file', async () => {
+    const fetchSpy = queueFetchResponses([{}]);
+    await new QuizDriveService('t').patchQuiz(quiz, 'frozen-1');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = (
+      fetchSpy as unknown as { mock: { calls: Array<[string, RequestInit]> } }
+    ).mock.calls[0];
+    expect(url).toContain('/files/frozen-1?uploadType=media');
+    expect(init.method).toBe('PATCH');
+  });
+
+  it('throws on a failed patch without looking up or creating a file', async () => {
+    const fetchSpy = queueFetchResponses([{ ok: false, status: 404 }]);
+    await expect(
+      new QuizDriveService('t').patchQuiz(quiz, 'frozen-1')
+    ).rejects.toThrow();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+});

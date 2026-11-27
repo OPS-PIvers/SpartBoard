@@ -230,6 +230,19 @@ export class QuizDriveService {
 
   // ─── Quiz CRUD ──────────────────────────────────────────────────────────────
 
+  /** Rewrites that one file; never looks a file up by name or creates one, and throws on any failure. */
+  async patchQuiz(quiz: QuizData, fileId: string): Promise<void> {
+    const res = await this.session.request(
+      `${UPLOAD_API_URL}/files/${fileId}?uploadType=media`,
+      {
+        method: 'PATCH',
+        headers: { ...this.authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify(quiz, null, 2),
+      }
+    );
+    if (!res.ok) throw new Error('Failed to upload quiz content to Drive');
+  }
+
   /**
    * Save a quiz to Google Drive.
    * If quizData.id already has a driveFileId (passed separately), updates that file.

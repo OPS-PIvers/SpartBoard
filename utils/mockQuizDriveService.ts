@@ -29,6 +29,7 @@ export interface QuizDriveLike {
     quiz: QuizData | VideoActivityData,
     existingFileId?: string
   ): Promise<string>;
+  patchQuiz(quiz: QuizData, fileId: string): Promise<void>;
   loadQuiz(fileId: string): Promise<QuizData>;
   deleteQuizFile(fileId: string): Promise<void>;
   importFromGoogleSheet(
@@ -62,6 +63,13 @@ export class MockQuizDriveService implements QuizDriveLike {
     const fileId = existingFileId ?? `mock-${crypto.randomUUID()}`;
     localStorage.setItem(this.key(fileId), JSON.stringify(quiz));
     return Promise.resolve(fileId);
+  }
+
+  patchQuiz(quiz: QuizData, fileId: string): Promise<void> {
+    if (!localStorage.getItem(this.key(fileId)))
+      return Promise.reject(new Error('Quiz file not found in mock drive'));
+    localStorage.setItem(this.key(fileId), JSON.stringify(quiz));
+    return Promise.resolve();
   }
 
   loadQuiz(fileId: string): Promise<QuizData> {

@@ -102,7 +102,7 @@ export interface UseQuizResult {
   ) => Promise<QuizMetadata>;
   /** Load full quiz data from Drive by its driveFileId */
   loadQuizData: (driveFileId: string) => Promise<QuizData>;
-  /** Drive-only copy of a resolved assignment (no Firestore metadata); returns the file id. Given a file id, rewrites that copy as is. */
+  /** Drive-only copy of a resolved assignment (no Firestore metadata); returns the file id. Given a file id, only patches that copy and throws on failure. */
   saveDriveSnapshot: (
     quiz: QuizData,
     existingDriveFileId?: string
@@ -627,8 +627,10 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
       const now = Date.now();
-      if (existingDriveFileId)
-        return drive.saveQuiz({ ...quiz, updatedAt: now }, existingDriveFileId);
+      if (existingDriveFileId) {
+        await drive.patchQuiz({ ...quiz, updatedAt: now }, existingDriveFileId);
+        return existingDriveFileId;
+      }
       const snapshot: QuizData = {
         ...quiz,
         id: crypto.randomUUID(),
