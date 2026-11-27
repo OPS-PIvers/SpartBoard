@@ -50,8 +50,10 @@ export interface GcOptions {
   allRevisions?: boolean;
 }
 
-function revisionOwners(paths: string[]): string[] {
-  return [...new Set(paths.map(glMediaOwner).filter((u): u is string => !!u))];
+function revisionOwners(paths: string[], editorUid?: string): string[] {
+  const owners = paths.map(glMediaOwner).filter((u): u is string => !!u);
+  if (editorUid) owners.push(editorUid);
+  return [...new Set(owners)];
 }
 
 // Returns the paths that were deleted.
@@ -72,7 +74,7 @@ export async function gcOrphanedSlidePaths(
         : {
             ownerUids: revisionOwners(
               paths,
-              opts.ignorePersonal && opts.ignorePersonal.uid
+              opts.ignorePersonal ? opts.ignorePersonal.uid : undefined
             ),
           },
     });
