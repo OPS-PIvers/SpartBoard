@@ -256,7 +256,7 @@ export async function refreshRubricForSession(opts: {
   if (failed) throw failed.reason;
 }
 
-/** Refreshes the teacher's other live, unfrozen assignments of a quiz; false when any failed. */
+/** Refreshes the teacher's other unfrozen assignments of a quiz, ended ones included; false when any failed. */
 export async function refreshRubricPeers(
   assignments: readonly QuizAssignment[],
   opts: {
@@ -274,7 +274,6 @@ export async function refreshRubricPeers(
       a.quizId === opts.quizId &&
       a.id !== opts.activeAssignmentId &&
       a.teacherUid === opts.teacherUid &&
-      a.status !== 'inactive' &&
       !assignmentFrozenFileId(a)
   );
   const results = await Promise.allSettled(

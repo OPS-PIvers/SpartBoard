@@ -3043,7 +3043,7 @@ const TeacherQuizWidget: React.FC<{
                   }
                 : prev
             );
-            // Other live assignments graded from this library file follow the new total too.
+            // Every other unfrozen assignment of this library file, ended ones too, follows the new total.
             const peersOk = before
               ? await refreshRubricPeers(assignments, {
                   quizId: meta.id,

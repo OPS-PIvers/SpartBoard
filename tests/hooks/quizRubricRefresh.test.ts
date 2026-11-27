@@ -424,8 +424,16 @@ describe('refreshRubricPeers', () => {
       ...extra,
     }) as QuizAssignment;
 
-  it('refreshes every other live, unfrozen assignment of the quiz', async () => {
-    for (const id of ['active', 'p2', 'paused', 'ended', 'frozen', 'other'])
+  it('refreshes every other unfrozen assignment of the quiz, ended ones included', async () => {
+    for (const id of [
+      'active',
+      'p2',
+      'paused',
+      'ended',
+      'frozen',
+      'drawn',
+      'other',
+    ])
       seedSession(id);
     const ok = await refreshRubricPeers(
       [
@@ -434,6 +442,7 @@ describe('refreshRubricPeers', () => {
         assignment('paused', { status: 'paused' }),
         assignment('ended', { status: 'inactive' }),
         assignment('frozen', { frozenDriveFileId: 'f1' }),
+        assignment('drawn', { resolvedDriveFileId: 'd1' }),
         assignment('other', { quizId: 'quiz2' }),
       ],
       {
@@ -453,8 +462,10 @@ describe('refreshRubricPeers', () => {
       )[0].points;
     expect(points('p2')).toBe(7);
     expect(points('paused')).toBe(7);
+    expect(points('ended')).toBe(7);
+    expect(response('ended').scorePoints.possible).toBe(8);
     expect(response('p2').scorePoints.possible).toBe(8);
-    for (const id of ['active', 'ended', 'frozen', 'other']) {
+    for (const id of ['active', 'frozen', 'drawn', 'other']) {
       expect(points(id)).toBe(4);
       expect(response(id).grading.w1.pointsAwarded).toBe(4);
     }
