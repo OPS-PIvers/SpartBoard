@@ -2641,9 +2641,9 @@ service cloud.firestore {
       function mentInPair(id, ws) {
         return signedIn() && authUid() in ws.get('memberUids', []) && plcMember(id);
       }
-      function mentWsReadOk() {
+      function mentWsReadOk(wsId) {
         return mentFacilitator(plcId)
-          || mentInPair(plcId, dbGet4('plcs', plcId, 'workspaces', workspaceId).data);
+          || mentInPair(plcId, dbGet4('plcs', plcId, 'workspaces', wsId).data);
       }
 
       // tasks: every member reads (shared match); facilitator writes run in plcTeamItemsV1.
@@ -2652,11 +2652,11 @@ service cloud.firestore {
         allow read: if mentFacilitator(plcId) || mentInPair(plcId, existing());
 
         match /checkins/{checkinId} {
-          allow read: if mentWsReadOk();
+          allow read: if mentWsReadOk(workspaceId);
         }
 
         match /submissions/{subId} {
-          allow read: if mentWsReadOk();
+          allow read: if mentWsReadOk(workspaceId);
         }
       }
       // ---- end Mentoring program ----
