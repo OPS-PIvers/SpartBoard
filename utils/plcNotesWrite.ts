@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
+import { guardPlcCallable } from '@/utils/plcViewAsCallable';
 
 export type PlcNotesCollection =
   'notes' | 'meetings' | 'recordings' | 'noteDocs' | 'comments';
@@ -107,11 +108,21 @@ export async function plcNotesWrite(
     { plcId: string; writes: WireWrite[] },
     { ok: true }
   >(functions, 'plcNotesWriteV1');
-  try {
-    await fn({ plcId, writes: writes.map(toWire) });
-  } catch (err) {
-    throw normalize(err);
-  }
+  const wire = writes.map(toWire);
+  await guardPlcCallable(
+    wire.map((w) => ({
+      op: w.op === 'create' ? 'set' : 'update',
+      path: `plcs/${plcId}/${w.coll}/${w.id}`,
+      data: w.data,
+    })),
+    async () => {
+      try {
+        await fn({ plcId, writes: wire });
+      } catch (err) {
+        throw normalize(err);
+      }
+    }
+  );
 }
 
 export const plcNotesCreate = (
