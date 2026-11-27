@@ -94,7 +94,7 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                 ) : definition.type === 'number' ? (
                   <DraftNumberField
                     id={`${ctx.id}-${definition.key}`}
-                    value={typeof value === 'number' ? value : 0}
+                    value={Number.isFinite(Number(value)) ? Number(value) : 0}
                     onCommit={(n) => change(definition.key, n)}
                     {...tourFieldAttr(
                       'widget-settings.custom-widget.definition-input',

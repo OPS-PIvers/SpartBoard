@@ -38,4 +38,16 @@ describe('CustomWidgetSettingsField number input', () => {
     fireEvent.change(input, { target: { value: '' } });
     expect(input.value).toBe('');
   });
+  it('shows a number stored as text', () => {
+    const textCtx = {
+      ...ctx,
+      config: { customWidgetId: 'cw1', adminSettings: { count: '10' } },
+    } as unknown as CustomRenderCtx;
+    render(
+      <CustomWidgetsContext.Provider value={value}>
+        <CustomWidgetSettingsField ctx={textCtx} />
+      </CustomWidgetsContext.Provider>
+    );
+    expect(screen.getByLabelText<HTMLInputElement>('Count').value).toBe('10');
+  });
 });
