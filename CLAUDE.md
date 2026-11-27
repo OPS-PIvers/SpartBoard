@@ -25,6 +25,7 @@ are in [docs/ONBOARDING.md](docs/ONBOARDING.md).
 
 - **pnpm only** — never `npm install`. **Node 24+** (`functions/` is pinned to 24).
 - Install with `pnpm run install:all` (root + `functions/`), not bare `pnpm install`.
+- `type-check` and the functions build run TypeScript 7 (native, the `typescript-7` alias). TypeScript 6 stays as `typescript` because typescript-eslint and our TS-API tests need its JS API; `pnpm run type-check:ts6` is the fallback.
 - `pnpm run test:rules` boots the Firestore emulator (`vitest.rules.config.ts`, `tests/rules/`).
 - `pnpm run test:counts` fails if Vitest silently collected fewer suites than baseline. CI shards with `test:shard --shard=I/N` (rules with `RULES_SHARD=I/N pnpm run test:rules`), then `test:merge-reports` before `test:counts`.
 - `pnpm run changelog:draft` prints a draft release note. Save it as a new `changelog.d/<name>.json` file (see `changelog.d/README.md`), never as an edit to the shared `public/changelog.json`. Every bullet must be rewritten before committing — the rules are in [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md#how-to-write-a-release-note), and both `overview` and `details` are shown to every user.
