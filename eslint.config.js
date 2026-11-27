@@ -8,8 +8,11 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import reactRefreshPlugin from 'eslint-plugin-react-refresh';
 import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals';
+import { createRequire } from 'module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+// eslint-plugin-react's 'detect' calls context.getFilename, which ESLint 10 removed.
+const reactVersion = createRequire(import.meta.url)('react/package.json').version;
 
 // D4 (Import Path Convention): live-computed list of components/plc/
 // subdirectory names, read from disk at lint-config-load time so the
@@ -88,6 +91,14 @@ export default tseslint.config(
     ],
   },
   js.configs.recommended,
+  // ESLint 10 added these to recommended; off until AB-422 fixes the existing hits.
+  {
+    rules: {
+      'no-unassigned-vars': 'off',
+      'no-useless-assignment': 'off',
+      'preserve-caught-error': 'off',
+    },
+  },
   ...tseslint.configs.recommendedTypeChecked,
   {
     languageOptions: {
@@ -112,7 +123,7 @@ export default tseslint.config(
     },
     settings: {
       react: {
-        version: 'detect',
+        version: reactVersion,
       },
     },
     rules: {
