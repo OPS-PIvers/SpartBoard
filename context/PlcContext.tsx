@@ -40,9 +40,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
-  updateDoc,
   where,
-  writeBatch,
   type Query,
 } from 'firebase/firestore';
 import { writePlcActivityEvent } from '@/utils/plcActivity';
@@ -52,6 +50,13 @@ import {
   plcNotesWrite,
   type PlcNotesWrite,
 } from '@/utils/plcNotesWrite';
+import {
+  PLC_SERVER_TIME,
+  setPlcContentDoc,
+  updatePlcContentDoc,
+  writePlcContent,
+  type PlcContentWrite,
+} from '@/utils/plcContentWrites';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -714,12 +719,6 @@ function useStableActions(
 ): PlcActions {
   const notesRef = () =>
     collection(db, PLCS_COLLECTION, latest.current.plcId, 'notes');
-  const docRef = (docId: string) =>
-    doc(db, PLCS_COLLECTION, latest.current.plcId, 'docs', docId);
-  const assessmentRef = (assessmentId: string) =>
-    doc(db, PLCS_COLLECTION, latest.current.plcId, 'assessments', assessmentId);
-  const quizRef = (plcQuizId: string) =>
-    doc(db, PLCS_COLLECTION, latest.current.plcId, 'quizzes', plcQuizId);
   const meetingRef = (meetingId: string) =>
     doc(db, PLCS_COLLECTION, latest.current.plcId, 'meetings', meetingId);
 
@@ -891,19 +890,18 @@ function useStableActions(
   const createDoc = useCallback(
     async (input: { title: string; url: string }): Promise<string> => {
       const u = requireUser();
-      const ref = doc(
-        collection(db, PLCS_COLLECTION, latest.current.plcId, 'docs')
-      );
+      const plcId = latest.current.plcId;
+      const ref = doc(collection(db, PLCS_COLLECTION, plcId, 'docs'));
       // serverTimestamp() for the time fields (Decision 1.3); `parseDoc`
       // resolves the Timestamp to millis on read via `tsToMillis`.
-      await setDoc(ref, {
+      await setPlcContentDoc(plcId, 'docs', ref.id, {
         id: ref.id,
         title: input.title,
         url: input.url,
         createdBy: u.uid,
         createdByName: u.displayName ?? '',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: PLC_SERVER_TIME,
+        updatedAt: PLC_SERVER_TIME,
       });
       return ref.id;
     },
@@ -917,11 +915,11 @@ function useStableActions(
     ): Promise<void> => {
       requireUser();
       const fields: Record<string, unknown> = {
-        updatedAt: serverTimestamp(),
+        updatedAt: PLC_SERVER_TIME,
       };
       if (patch.title !== undefined) fields.title = patch.title;
       if (patch.url !== undefined) fields.url = patch.url;
-      await updateDoc(docRef(docId), fields);
+      await updatePlcContentDoc(latest.current.plcId, 'docs', docId, fields);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -931,9 +929,9 @@ function useStableActions(
   const deleteDocAction = useCallback(
     async (docId: string): Promise<void> => {
       requireUser();
-      await updateDoc(docRef(docId), {
-        deletedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      await updatePlcContentDoc(latest.current.plcId, 'docs', docId, {
+        deletedAt: PLC_SERVER_TIME,
+        updatedAt: PLC_SERVER_TIME,
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -942,9 +940,9 @@ function useStableActions(
   const restoreDocAction = useCallback(
     async (docId: string): Promise<void> => {
       requireUser();
-      await updateDoc(docRef(docId), {
+      await updatePlcContentDoc(latest.current.plcId, 'docs', docId, {
         deletedAt: null,
-        updatedAt: serverTimestamp(),
+        updatedAt: PLC_SERVER_TIME,
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -969,14 +967,19 @@ function useStableActions(
       // kind/syncGroupId) are immutable in rules and never written here; the
       // post-merge doc passes `keys().hasOnly([...])`. `updatedAt` is bumped.
       const fields: Record<string, unknown> = {
-        updatedAt: serverTimestamp(),
+        updatedAt: PLC_SERVER_TIME,
       };
       if (patch.title !== undefined) fields.title = patch.title;
       if (patch.unitLabel !== undefined) fields.unitLabel = patch.unitLabel;
       if (patch.opensAt !== undefined) fields.opensAt = patch.opensAt;
       if (patch.dueAt !== undefined) fields.dueAt = patch.dueAt;
       if (patch.status !== undefined) fields.status = patch.status;
-      await updateDoc(assessmentRef(assessmentId), fields);
+      await updatePlcContentDoc(
+        latest.current.plcId,
+        'assessments',
+        assessmentId,
+        fields
+      );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -988,10 +991,12 @@ function useStableActions(
   const deleteAssessment = useCallback(
     async (assessmentId: string): Promise<void> => {
       requireUser();
-      await updateDoc(assessmentRef(assessmentId), {
-        deletedAt: Date.now(),
-        updatedAt: serverTimestamp(),
-      });
+      await updatePlcContentDoc(
+        latest.current.plcId,
+        'assessments',
+        assessmentId,
+        { deletedAt: Date.now(), updatedAt: PLC_SERVER_TIME }
+      );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -999,10 +1004,12 @@ function useStableActions(
   const restoreAssessment = useCallback(
     async (assessmentId: string): Promise<void> => {
       requireUser();
-      await updateDoc(assessmentRef(assessmentId), {
-        deletedAt: null,
-        updatedAt: serverTimestamp(),
-      });
+      await updatePlcContentDoc(
+        latest.current.plcId,
+        'assessments',
+        assessmentId,
+        { deletedAt: null, updatedAt: PLC_SERVER_TIME }
+      );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -1016,20 +1023,25 @@ function useStableActions(
       assessmentId: string | null;
     }): Promise<void> => {
       requireUser();
-      const batch = writeBatch(db);
+      const writes: PlcContentWrite[] = [];
       if (target.plcQuizId) {
-        batch.update(quizRef(target.plcQuizId), {
-          archived: true,
-          updatedAt: Date.now(),
+        writes.push({
+          op: 'update',
+          coll: 'quizzes',
+          id: target.plcQuizId,
+          data: { archived: true, updatedAt: Date.now() },
         });
       }
       if (target.assessmentId) {
-        batch.update(assessmentRef(target.assessmentId), {
-          status: 'closed',
-          updatedAt: serverTimestamp(),
+        writes.push({
+          op: 'update',
+          coll: 'assessments',
+          id: target.assessmentId,
+          data: { status: 'closed', updatedAt: PLC_SERVER_TIME },
         });
       }
-      await batch.commit();
+      if (writes.length > 0)
+        await writePlcContent(latest.current.plcId, writes);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]
@@ -1040,20 +1052,25 @@ function useStableActions(
       assessmentId: string | null;
     }): Promise<void> => {
       requireUser();
-      const batch = writeBatch(db);
+      const writes: PlcContentWrite[] = [];
       if (target.plcQuizId) {
-        batch.update(quizRef(target.plcQuizId), {
-          archived: false,
-          updatedAt: Date.now(),
+        writes.push({
+          op: 'update',
+          coll: 'quizzes',
+          id: target.plcQuizId,
+          data: { archived: false, updatedAt: Date.now() },
         });
       }
       if (target.assessmentId) {
-        batch.update(assessmentRef(target.assessmentId), {
-          status: 'active',
-          updatedAt: serverTimestamp(),
+        writes.push({
+          op: 'update',
+          coll: 'assessments',
+          id: target.assessmentId,
+          data: { status: 'active', updatedAt: PLC_SERVER_TIME },
         });
       }
-      await batch.commit();
+      if (writes.length > 0)
+        await writePlcContent(latest.current.plcId, writes);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [latest]

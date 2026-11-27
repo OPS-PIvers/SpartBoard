@@ -17,7 +17,8 @@
 import React, { useEffect } from 'react';
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { collection, onSnapshot, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { writePlcContent } from '@/utils/plcContentWrites';
 
 import { PlcProvider } from '@/context/PlcContext';
 import {
@@ -84,6 +85,13 @@ vi.mock('@/hooks/usePlcs', () => ({
 }));
 
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+
+vi.mock('@/utils/plcContentWrites', () => ({
+  PLC_SERVER_TIME: { __plcSentinel: 'serverTime' },
+  setPlcContentDoc: vi.fn().mockResolvedValue(undefined),
+  updatePlcContentDoc: vi.fn().mockResolvedValue(undefined),
+  writePlcContent: vi.fn().mockResolvedValue(undefined),
+}));
 
 const mockCollection = collection as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
@@ -472,9 +480,8 @@ describe('usePlcActions — mount-stable identity', () => {
   });
 
   it('archiveQuiz batches quiz.archived and assessment.status when both ids are given', async () => {
-    const update = vi.fn();
-    const commit = vi.fn().mockResolvedValue(undefined);
-    (writeBatch as unknown as Mock).mockReturnValue({ update, commit });
+    const write = writePlcContent as unknown as Mock;
+    write.mockClear();
     const captured: ReturnType<typeof usePlcActions>[] = [];
     const Probe: React.FC = () => {
       captured.push(usePlcActions());
@@ -491,16 +498,25 @@ describe('usePlcActions — mount-stable identity', () => {
         assessmentId: 'a1',
       });
     });
-    expect(update).toHaveBeenCalledTimes(2);
-    expect(update.mock.calls[0][1]).toMatchObject({ archived: true });
-    expect(update.mock.calls[1][1]).toMatchObject({ status: 'closed' });
-    expect(commit).toHaveBeenCalled();
+    expect(write).toHaveBeenCalledTimes(1);
+    const [plcId, writes] = write.mock.calls[0] as [string, unknown[]];
+    expect(plcId).toBe(PLC_ID);
+    expect(writes).toHaveLength(2);
+    expect(writes[0]).toMatchObject({
+      coll: 'quizzes',
+      id: 'q1',
+      data: { archived: true },
+    });
+    expect(writes[1]).toMatchObject({
+      coll: 'assessments',
+      id: 'a1',
+      data: { status: 'closed' },
+    });
   });
 
   it('archiveQuiz writes only the quiz doc when assessmentId is null (never-assigned quiz)', async () => {
-    const update = vi.fn();
-    const commit = vi.fn().mockResolvedValue(undefined);
-    (writeBatch as unknown as Mock).mockReturnValue({ update, commit });
+    const write = writePlcContent as unknown as Mock;
+    write.mockClear();
     const captured: ReturnType<typeof usePlcActions>[] = [];
     const Probe: React.FC = () => {
       captured.push(usePlcActions());
@@ -517,15 +533,17 @@ describe('usePlcActions — mount-stable identity', () => {
         assessmentId: null,
       });
     });
-    expect(update).toHaveBeenCalledTimes(1);
-    expect(update.mock.calls[0][1]).toMatchObject({ archived: true });
-    expect(commit).toHaveBeenCalled();
+    expect(write.mock.calls[0][1]).toEqual([
+      expect.objectContaining({
+        coll: 'quizzes',
+        data: expect.objectContaining({ archived: true }),
+      }),
+    ]);
   });
 
   it('restoreQuiz clears archived and reopens the assessment', async () => {
-    const update = vi.fn();
-    const commit = vi.fn().mockResolvedValue(undefined);
-    (writeBatch as unknown as Mock).mockReturnValue({ update, commit });
+    const write = writePlcContent as unknown as Mock;
+    write.mockClear();
     const captured: ReturnType<typeof usePlcActions>[] = [];
     const Probe: React.FC = () => {
       captured.push(usePlcActions());
@@ -542,9 +560,15 @@ describe('usePlcActions — mount-stable identity', () => {
         assessmentId: 'a1',
       });
     });
-    expect(update.mock.calls[0][1]).toMatchObject({ archived: false });
-    expect(update.mock.calls[1][1]).toMatchObject({ status: 'active' });
-    expect(commit).toHaveBeenCalled();
+    const writes = write.mock.calls[0][1] as unknown[];
+    expect(writes[0]).toMatchObject({
+      coll: 'quizzes',
+      data: { archived: false },
+    });
+    expect(writes[1]).toMatchObject({
+      coll: 'assessments',
+      data: { status: 'active' },
+    });
   });
 });
 

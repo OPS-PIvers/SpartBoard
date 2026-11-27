@@ -1,11 +1,7 @@
 // Client side of plcContentWriteV1: shared PLC content writes go through the server, checked as the rules checked them.
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
-import {
-  ViewAsReadOnlyError,
-  viewAsBlocksRawWrite,
-  viewAsRawWriteNeedsAudit,
-} from '@/utils/viewAsTab';
+import { guardPlcCallable } from '@/utils/plcViewAsCallable';
 
 export type PlcContentCollection =
   | 'assessments'
@@ -66,21 +62,15 @@ export function stripUndefined(value: unknown): unknown {
   return value;
 }
 
-// Same View as guard and audit a raw Firestore write gets from utils/firestoreViewAsGuard.ts.
 async function send(req: PlcContentWriteRequest): Promise<void> {
-  const paths = req.writes.map((w) => `plcs/${req.plcId}/${w.coll}/${w.id}`);
-  if (viewAsBlocksRawWrite(paths)) throw new ViewAsReadOnlyError();
-  await call(req);
-  if (viewAsRawWriteNeedsAudit(paths)) {
-    const { recordViewAsRawWrites } = await import('@/utils/viewAsAudit');
-    await recordViewAsRawWrites(
-      req.writes.map((w, i) => ({
-        op: w.op,
-        path: paths[i],
-        ...(w.op === 'delete' ? {} : { data: w.data }),
-      }))
-    );
-  }
+  await guardPlcCallable(
+    req.writes.map((w) => ({
+      op: w.op,
+      path: `plcs/${req.plcId}/${w.coll}/${w.id}`,
+      ...(w.op === 'delete' ? {} : { data: w.data }),
+    })),
+    () => call(req)
+  );
 }
 
 async function call(req: PlcContentWriteRequest): Promise<void> {
