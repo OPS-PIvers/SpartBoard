@@ -1734,24 +1734,18 @@ const TeacherGuidedLearningWidget: React.FC<{
                                 }),
                                 helpCenter: true,
                               };
+                              // File first so a failure leaves no tour hidden from every library.
+                              const author = helpAuthor();
+                              if (!author) throw new Error('Not signed in');
+                              const filed = await createHiddenHelpItem(
+                                tour,
+                                author
+                              );
                               // A guard keeps tour.updatedAt, the revision the board editor saves against.
                               await saveBuildingSet(tour, {
                                 expectedUpdatedAt: undefined,
                               });
-                              const author = helpAuthor();
-                              const filed = author
-                                ? await createHiddenHelpItem(
-                                    tour,
-                                    author
-                                  ).catch((err: unknown) => {
-                                    console.error(
-                                      '[GuidedLearning] Filing the tour failed:',
-                                      err
-                                    );
-                                    return null;
-                                  })
-                                : null;
-                              if (filed) noteFiledHelpItem(tour.id, filed.id);
+                              noteFiledHelpItem(tour.id, filed.id);
                               requestEditTour({
                                 setId: tour.id,
                                 origin: 'widget',

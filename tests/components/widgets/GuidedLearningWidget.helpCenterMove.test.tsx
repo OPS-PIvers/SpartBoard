@@ -293,4 +293,34 @@ describe('GuidedLearningWidget Help Center moves', () => {
     });
     expect(takeFiledHelpItem(saved.id)).toBe('item-t');
   });
+
+  it('saves nothing and shows the failure toast when filing a converted tour fails', async () => {
+    glHook.saveBuildingSet.mockClear();
+    glHook.loadBuildingSet.mockResolvedValue({
+      id: 'b-2',
+      title: 'Seating chart guide',
+      imageUrls: [],
+      steps: [],
+      mode: 'structured',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    helpItems.createHiddenHelpItem.mockRejectedValue(new Error('denied'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const edits = vi.fn();
+    window.addEventListener(TOUR_EDIT_EVENT, edits);
+    render(<GuidedLearningWidget widget={widget} />);
+    await waitFor(() => expect(captured.props).toBeDefined());
+    addToast.mockClear();
+    void captured.props?.onConvertToLiveTour?.('b-2', undefined, {
+      id: 'b-2',
+      updatedAt: 1,
+    } as GuidedLearningBuildingSetIndex);
+    await waitFor(() =>
+      expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error')
+    );
+    window.removeEventListener(TOUR_EDIT_EVENT, edits);
+    expect(glHook.saveBuildingSet).not.toHaveBeenCalled();
+    expect(edits).not.toHaveBeenCalled();
+  });
 });
