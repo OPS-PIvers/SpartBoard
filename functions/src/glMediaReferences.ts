@@ -154,7 +154,12 @@ async function addRevisionReferences(
   if (only && 'ownerUids' in only) {
     await Promise.all(
       only.ownerUids.map((uid) =>
-        scan(db.collection(`users/${uid}/${REVISIONS_COLLECTION}`), visit)
+        scan(
+          db
+            .collection(`users/${uid}/${REVISIONS_COLLECTION}`)
+            .where('createdAt', '>=', now - REVISION_KEEP_MS),
+          visit
+        )
       )
     );
     return;
@@ -167,7 +172,7 @@ async function addRevisionReferences(
   await scan(query, visit);
 }
 
-/** Scan every recent revision of these uploaders, whichever set it belongs to. */
+/** Scan every recent revision under these editors' uids, whichever set it belongs to. */
 export interface RevisionOwners {
   ownerUids: string[];
 }
@@ -176,7 +181,7 @@ export interface ReferenceScanOptions {
   /** A building set whose own listing does not count (its editor just removed the file). */
   ignoreBuildingSetId?: string;
   now?: number;
-  /** Also scan Claude revisions: every one, or only those of one personal set. */
+  /** Also scan Claude revisions: every one, one personal set's, or every set's under some editors. */
   revisions?: 'all' | IgnoredPersonalSet | RevisionOwners;
 }
 

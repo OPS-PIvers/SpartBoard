@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createFakeBucket, createFakeDb } from './glMediaTestFakes';
 
-const state = vi.hoisted((): { db: unknown; bucket: unknown } => ({
-  db: null,
-  bucket: null,
+const state = vi.hoisted(
+  (): { db: unknown; bucket: unknown; admin: boolean } => ({
+    db: null,
+    bucket: null,
+    admin: false,
+  })
+);
+
+vi.mock('./glBuildingIndex', () => ({
+  isRulesAdmin: vi.fn(() => Promise.resolve(state.admin)),
 }));
 
 vi.mock('./firebaseAdmin', () => ({
@@ -51,6 +58,7 @@ const url = (path: string) =>
 let bucket: ReturnType<typeof createFakeBucket>;
 function setup(docs: Record<string, Record<string, unknown>>) {
   state.db = createFakeDb(docs);
+  state.admin = false;
   bucket = createFakeBucket([]);
   state.bucket = bucket;
 }
@@ -257,6 +265,21 @@ describe('set-delete triggers', () => {
   });
 });
 
+const t2Revision = {
+  itemId: 'b1',
+  createdAt: Date.now(),
+  data: { steps: [{ audioStoragePath: P1 }] },
+};
+
+it('building delete trigger keeps a file another admin’s revision names', async () => {
+  setup({ 'users/t2/claude_revisions/r1': t2Revision });
+  await run(gcBuildingGuidedLearningMedia, {
+    params: { setId: 'b1' },
+    data: { data: () => ({ imagePaths: [P1] }) },
+  });
+  expect(bucket.deleted).toEqual([]);
+});
+
 describe('releaseGuidedLearningMediaV1', () => {
   it('lets a teacher release their own files, never another user’s', async () => {
     setup({
@@ -280,6 +303,27 @@ describe('releaseGuidedLearningMediaV1', () => {
         data: { setId: 'b1', building: true, paths: [P1] },
       })
     ).rejects.toThrow('Admin access required.');
+  });
+
+  it('building release keeps a file another admin’s revision names', async () => {
+    setup({ 'users/t2/claude_revisions/r1': t2Revision });
+    state.admin = true;
+    const res = await run(releaseGuidedLearningMediaV1, {
+      auth: { uid: 'a1', token: {} },
+      data: { setId: 'b1', building: true, paths: [P1] },
+    });
+    expect(res).toEqual({ deleted: 0 });
+    expect(bucket.deleted).toEqual([]);
+  });
+
+  it('an admin’s personal release of another user’s file keeps it when that editor’s revision names it', async () => {
+    setup({ 'users/t2/claude_revisions/r1': t2Revision });
+    state.admin = true;
+    const res = await run(releaseGuidedLearningMediaV1, {
+      auth: { uid: 'a1', token: {} },
+      data: { setId: 's1', paths: [P1] },
+    });
+    expect(res).toEqual({ deleted: 0 });
   });
 
   it('requires sign-in', async () => {
