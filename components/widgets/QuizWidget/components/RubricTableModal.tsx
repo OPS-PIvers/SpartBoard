@@ -10,7 +10,11 @@ import type {
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { FullscreenToggleButton } from '@/components/common/FullscreenToggleButton';
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import {
+  tourFieldAttr,
+  tourTypeAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 import { RubricGuideExamples } from '@/components/quiz/RubricGuideExamples';
 import {
   criterionMaxPoints,
@@ -100,6 +104,34 @@ const newLevel = (points: number, label = ''): RubricLevel => ({
 
 const nextPoints = (levels: RubricLevel[]) =>
   levels.reduce((m, l) => Math.max(m, l.points), -1) + 1;
+
+// A cleared field stays blank while typing and shows the kept points on blur, never saving 0.
+const LevelPointsInput: React.FC<
+  Omit<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    'type' | 'value' | 'onChange' | 'onBlur'
+  > &
+    TourAnchorAttrs & { points: number; onPoints: (points: number) => void }
+> = ({ points, onPoints, ...rest }) => {
+  const [text, setText] = useState<string | null>(null);
+  return (
+    // no-tour-anchor: the caller passes the points field's anchor in rest
+    <input
+      {...rest}
+      type="number"
+      min={0}
+      step="any"
+      value={text ?? points}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setText(raw);
+        const n = Number(raw);
+        if (raw.trim() !== '' && Number.isFinite(n) && n >= 0) onPoints(n);
+      }}
+      onBlur={() => setText(null)}
+    />
+  );
+};
 
 const tableGuideAnchor: GuideFieldAnchor = (field, key) => {
   switch (field) {
@@ -879,18 +911,13 @@ export const RubricTableModal: React.FC<RubricTableModalProps> = ({
                               </span>
                             )}
                             <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                              <input
-                                type="number"
-                                min={0}
-                                step="any"
-                                value={level.points}
-                                onChange={(e) => {
-                                  const n = Number(e.target.value);
-                                  if (Number.isFinite(n) && n >= 0)
-                                    patchLevel(criterion.id, level.id, {
-                                      points: n,
-                                    });
-                                }}
+                              <LevelPointsInput
+                                points={level.points}
+                                onPoints={(n) =>
+                                  patchLevel(criterion.id, level.id, {
+                                    points: n,
+                                  })
+                                }
                                 aria-label={`Criterion ${ri + 1} level ${i + 1} points`}
                                 aria-invalid={hasDupes || undefined}
                                 {...tourFieldAttr(

@@ -194,7 +194,11 @@ import {
   type StudentReportTarget,
 } from '@/utils/quizStudentReportPrint';
 import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
-import { rescoreRubricGrades, sameRubric } from '@/utils/rubricPoints';
+import {
+  rescoreRubricGrades,
+  sameRubric,
+  saveRubricThenRescore,
+} from '@/utils/rubricPoints';
 import { ResultsPrintModal } from './ResultsPrintModal';
 import {
   computeQuestionDrilldowns,
@@ -944,19 +948,23 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         const before = quiz.questions
           .flatMap((q) => [q.rubricSnapshot, q.modifiedRubricSnapshot])
           .find((r) => r && sameRubric(r, rubric));
-        await onSaveRubric(rubric);
-        if (!before || !session || user?.uid !== session.teacherUid) return;
-        const writes = responses.flatMap((r) => {
-          const key = r._responseKey ?? r.studentUid;
-          if (!key || !r.grading) return [];
-          return rescoreRubricGrades(before, rubric, r.grading).map(
-            ([gradingKeyStr, grade]) =>
-              saveWrittenGrade(key, gradingKeyStr, grade)
-          );
-        });
-        const results = await Promise.allSettled(writes);
-        if (results.some((x) => x.status === 'rejected'))
-          throw new Error('Rubric saved, but some scores did not update.');
+        await saveRubricThenRescore(
+          () => onSaveRubric(rubric),
+          async () => {
+            if (!before || !session || user?.uid !== session.teacherUid) return;
+            const writes = responses.flatMap((r) => {
+              const key = r._responseKey ?? r.studentUid;
+              if (!key || !r.grading) return [];
+              return rescoreRubricGrades(before, rubric, r.grading).map(
+                ([gradingKeyStr, grade]) =>
+                  saveWrittenGrade(key, gradingKeyStr, grade)
+              );
+            });
+            const results = await Promise.allSettled(writes);
+            if (results.some((x) => x.status === 'rejected'))
+              throw new Error('Rubric saved, but some scores did not update.');
+          }
+        );
       }
     : undefined;
 

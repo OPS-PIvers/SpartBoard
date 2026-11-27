@@ -64,7 +64,8 @@ export const applyRubricEdit = <
   requiredTotal?: number;
 } => {
   let changed = false;
-  let before: Rubric | undefined;
+  let mainBefore: Rubric | undefined;
+  let modifiedBefore: Rubric | undefined;
   let requiredTotal: number | undefined;
   const total = rubricMaxPoints(rubric);
   const libraryIds = new Set<string>();
@@ -73,22 +74,28 @@ export const applyRubricEdit = <
     const isMain = sameRubric(q.rubricSnapshot, rubric);
     const isModified = sameRubric(q.modifiedRubricSnapshot, rubric);
     if (isMain) {
-      before ??= q.rubricSnapshot;
+      mainBefore ??= q.rubricSnapshot;
       out = { ...out, rubricSnapshot: rubric, points: total };
       // Only the main rubric goes back to the library; a modified copy shares its id.
       if (q.rubricId) libraryIds.add(q.rubricId);
     }
     if (isModified) {
-      before ??= q.modifiedRubricSnapshot;
+      modifiedBefore ??= q.modifiedRubricSnapshot;
       out = { ...out, modifiedRubricSnapshot: rubric };
     }
-    const other =
+    const [edited, other] =
       isMain && !isModified
-        ? q.modifiedRubricSnapshot
+        ? [q.rubricSnapshot, q.modifiedRubricSnapshot]
         : isModified && !isMain
-          ? q.rubricSnapshot
-          : undefined;
-    if (other && rubricMaxPoints(other) !== total)
+          ? [q.modifiedRubricSnapshot, q.rubricSnapshot]
+          : [undefined, undefined];
+    // Only totals that matched must keep matching; legacy questions that already differ stay editable.
+    if (
+      edited &&
+      other &&
+      rubricMaxPoints(other) !== total &&
+      rubricMaxPoints(other) === rubricMaxPoints(edited)
+    )
       requiredTotal ??= rubricMaxPoints(other);
     if (out !== q) changed = true;
     return out;
@@ -97,7 +104,8 @@ export const applyRubricEdit = <
     questions: next,
     changed,
     libraryIds: [...libraryIds],
-    before,
+    // The library holds the main rubric, so a modified copy is only the fallback.
+    before: mainBefore ?? modifiedBefore,
     requiredTotal,
   };
 };
@@ -184,3 +192,22 @@ export const rescoreRubricGrades = (
 
 export const RUBRIC_MIN_LEVELS = 2;
 export const RUBRIC_MAX_LEVELS = 6;
+
+/** The quiz saved but the library rubric did not. */
+export class RubricLibraryError extends Error {}
+
+/** Rescores after a save, even when only the library write failed, then reports that failure. */
+export const saveRubricThenRescore = async (
+  save: () => Promise<void>,
+  rescore: () => Promise<void>
+): Promise<void> => {
+  let libraryError: RubricLibraryError | undefined;
+  try {
+    await save();
+  } catch (err) {
+    if (!(err instanceof RubricLibraryError)) throw err;
+    libraryError = err;
+  }
+  await rescore();
+  if (libraryError) throw libraryError;
+};

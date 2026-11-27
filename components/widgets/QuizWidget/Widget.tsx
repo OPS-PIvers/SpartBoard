@@ -147,7 +147,11 @@ import {
   type VersionImportBuild,
 } from '@/utils/quizDocumentImport/versionPlan';
 import { getRubricDoc, saveRubricDoc } from '@/hooks/useRubrics';
-import { applyRubricEdit, sameRubricContent } from '@/utils/rubricPoints';
+import {
+  applyRubricEdit,
+  RubricLibraryError,
+  sameRubricContent,
+} from '@/utils/rubricPoints';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -3056,7 +3060,7 @@ const TeacherQuizWidget: React.FC<{
               (r) => r.status === 'fulfilled' && r.value === 'kept'
             );
             if (library.some((r) => r.status === 'rejected'))
-              throw new Error(
+              throw new RubricLibraryError(
                 'Saved to this quiz, but your library rubric did not update.'
               );
             addToast(

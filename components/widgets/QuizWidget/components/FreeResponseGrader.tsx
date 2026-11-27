@@ -131,6 +131,7 @@ import { BackTranslationPanel } from './BackTranslationPanel';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
 import { WhiteboardAnnotatedResponseView } from './WhiteboardAnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
+import { useForgetOpenCriteriaOnUnmount } from '@/hooks/useRubricOpenCriteriaMemory';
 import { RubricStrandPills } from './RubricStrandChips';
 import { PaperCropPanel } from '@/components/quiz/paper/PaperCropPanel';
 import {
@@ -652,6 +653,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const { t } = useTranslation();
   const auth = useContext(AuthContext);
   const { showConfirm, showAlert } = useDialog();
+  useForgetOpenCriteriaOnUnmount();
   const whiteboardEnabled = auth
     ? canAccessQuizWhiteboardResponse(auth)
     : false;
