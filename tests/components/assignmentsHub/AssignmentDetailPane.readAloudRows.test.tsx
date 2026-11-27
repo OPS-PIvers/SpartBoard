@@ -1,6 +1,6 @@
 // Session-derived read-aloud state must not carry over when another assignment is selected.
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssignmentDetailPane } from '@/components/assignmentsHub/AssignmentDetailPane';
 import { useAuth } from '@/context/useAuth';
@@ -9,7 +9,6 @@ import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { useAssignmentRosterStatus } from '@/hooks/useAssignmentRosterStatus';
 import { useAssignmentDetailActions } from '@/hooks/useAssignmentDetailActions';
 import type { UnifiedAssignmentRow } from '@/components/assignmentsHub/useUnifiedAssignments';
-import type { ClassRoster } from '@/types';
 
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 vi.mock('@/context/useDashboard', () => ({ useDashboard: vi.fn() }));
@@ -34,7 +33,7 @@ vi.mock('@/hooks/useAssignmentDetailActions', async () => {
 });
 vi.mock('@/config/firebase', () => ({ db: {} }));
 const sessionSnaps = vi.hoisted(() => ({
-  emit: {} as Record<string, unknown>,
+  emit: {},
 }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, _col: string, id: string) => ({ id }),
