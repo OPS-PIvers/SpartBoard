@@ -11,7 +11,7 @@ import globals from 'globals';
 import { createRequire } from 'module';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-// eslint-plugin-react's 'detect' calls context.getFilename, which ESLint 10 removed.
+// eslint-plugin-react 7.37 calls APIs ESLint 10 removed: 'detect' crashes, and so would jsx-filename-extension, forward-ref-uses-ref and the jsx spacing rules.
 const reactVersion = createRequire(import.meta.url)('react/package.json').version;
 
 // D4 (Import Path Convention): live-computed list of components/plc/
