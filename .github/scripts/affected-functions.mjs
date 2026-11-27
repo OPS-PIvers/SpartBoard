@@ -64,6 +64,9 @@ function packageJsonChanges() {
 }
 
 const unquote = (text) => text.trim().replace(/^'(.*)'$/, '$1');
+// A snapshot key from a name and its resolved version; an npm alias resolves to `real-name@version`.
+const snapshotKey = (name, version) =>
+  /^\d/.test(version) ? `${name}@${version}` : version;
 
 // pnpm-lock.yaml v9: the runtime roots (importer `.` dependencies) and each snapshot's runtime children.
 function parseLock(text) {
@@ -93,7 +96,7 @@ function parseLock(text) {
     else if ((m = /^ {6}(\S.*):$/.exec(line))) name = unquote(m[1]);
     else if ((m = /^ {8}version: (.+)$/.exec(line))) {
       if (group === 'dependencies' || group === 'optionalDependencies')
-        roots.set(name, `${name}@${unquote(m[1])}`);
+        roots.set(name, snapshotKey(name, unquote(m[1])));
     }
   }
   const graph = new Map();
@@ -106,7 +109,7 @@ function parseLock(text) {
     } else if ((m = /^ {4}(\w+):$/.exec(line))) group = m[1];
     else if ((m = /^ {6}(\S.*?): (.+)$/.exec(line))) {
       if (group === 'dependencies' || group === 'optionalDependencies')
-        graph.get(key).push(`${unquote(m[1])}@${unquote(m[2])}`);
+        graph.get(key).push(snapshotKey(unquote(m[1]), unquote(m[2])));
     }
   }
   if (roots.size === 0 || graph.size === 0)
@@ -125,7 +128,11 @@ function runtimeClosure(lock, root) {
     const key = stack.pop();
     if (seen.has(key)) continue;
     seen.add(key);
-    stack.push(...(lock.graph.get(key) ?? []));
+    const children = lock.graph.get(key);
+    // link:, file: and anything misread have no snapshot, so their tree is unknown.
+    if (!children)
+      throw new Ambiguous(`${LOCKFILE} has no snapshot for ${key}`);
+    stack.push(...children);
   }
   return seen;
 }

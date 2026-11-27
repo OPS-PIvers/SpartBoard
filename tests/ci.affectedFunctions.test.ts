@@ -512,6 +512,11 @@ describe('affected-functions.mjs dependency changes', () => {
         [undefined, undefined, both],
         [undefined, lock({ overrides: '^4.0.0' }), lockOnly],
         [undefined, 'lockfileVersion: 6.0\n', lockOnly],
+        [
+          undefined,
+          lock({}).replace('follow-redirects: 1.15.0\n', 'fr: file:../fr\n'),
+          lockOnly,
+        ],
       ];
       for (const [oldPkg, oldLock, changed] of cases) {
         expect(
