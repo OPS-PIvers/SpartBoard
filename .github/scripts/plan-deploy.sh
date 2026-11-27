@@ -14,7 +14,7 @@
 # For dev-paul and main the diff base is the last successfully deployed commit, so a cancelled or
 # failed run's backend changes carry into the next run instead of being dropped.
 # Writes key=value lines to $GITHUB_OUTPUT (or stdout). CHANGED_FILES and
-# CONTAINS_DEV_PAUL override the git lookups, for tests; OLD_INDEX_FILE stands in for the base commit's index.ts.
+# CONTAINS_DEV_PAUL override the git lookups, for tests; OLD_INDEX_FILE and OLD_PACKAGE_FILE stand in for the base commit's index.ts and functions/package.json.
 
 set -euo pipefail
 
@@ -89,8 +89,14 @@ else
     elif ! git show "${BASE_SHA}:functions/src/featureMissingDoc.ts" >"$old_flags" 2>/dev/null; then
       rm -f "$old_flags"
     fi
-    names="$(grep '^functions/' <<<"$FILES" | AFFECTED_FUNCTIONS_OLD_INDEX="$old_index" AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC="$old_flags" node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
-    rm -f "$old_index" "$old_flags"
+    old_package="$(mktemp)"
+    if [[ -n "${OLD_PACKAGE_FILE:-}" ]]; then
+      cp "$OLD_PACKAGE_FILE" "$old_package"
+    elif ! git show "${BASE_SHA}:functions/package.json" >"$old_package" 2>/dev/null; then
+      rm -f "$old_package"
+    fi
+    names="$(grep '^functions/' <<<"$FILES" | AFFECTED_FUNCTIONS_OLD_INDEX="$old_index" AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC="$old_flags" AFFECTED_FUNCTIONS_OLD_PACKAGE="$old_package" node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
+    rm -f "$old_index" "$old_flags" "$old_package"
     if [[ -z "$names" ]]; then
       FUNCTIONS=false
     elif [[ "$names" != "ALL" ]]; then

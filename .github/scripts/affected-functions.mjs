@@ -2,6 +2,7 @@
 // Usage: affected-functions.mjs <repo-root> < changed-paths; prints ALL, nothing, or the affected exports (any doubt is ALL).
 // AFFECTED_FUNCTIONS_OLD_INDEX names a copy of the deployed index.ts, so an index.ts that only adds or repoints exports names just those.
 // AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC does the same for featureMissingDoc.ts, so a new feature id names only the code that uses it.
+// AFFECTED_FUNCTIONS_OLD_PACKAGE does the same for functions/package.json, so a dependency bump names only the code that imports it.
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -24,6 +25,52 @@ const NO_RUNTIME_EFFECT = [
 ];
 
 class Ambiguous extends Error {}
+
+const PACKAGE_JSON = 'functions/package.json';
+const LOCKFILE = 'functions/pnpm-lock.yaml';
+// The functions runtime loads these itself, so a bump reaches every function.
+const RUNTIME_PACKAGES = new Set([
+  'firebase-functions',
+  'firebase-admin',
+  '@google-cloud/functions-framework',
+]);
+
+// Runtime dependencies whose entry changed since the deployed package.json; any other runtime-relevant edit is ambiguous.
+function changedDependencies() {
+  const oldFile = process.env.AFFECTED_FUNCTIONS_OLD_PACKAGE;
+  if (!oldFile || !existsSync(oldFile)) throw new Ambiguous(PACKAGE_JSON);
+  const before = JSON.parse(read(oldFile));
+  const after = JSON.parse(read(join(repoRoot, PACKAGE_JSON)));
+  // scripts and devDependencies never reach deployed code: tsc runs in CI, and runtime code imports only dependencies.
+  const IGNORED = new Set(['scripts', 'devDependencies', 'dependencies']);
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const key of keys) {
+    if (IGNORED.has(key)) continue;
+    if (JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+      throw new Ambiguous(`${PACKAGE_JSON} changed "${key}"`);
+  }
+  const oldDeps = before.dependencies ?? {};
+  const newDeps = after.dependencies ?? {};
+  const names = [...new Set([...Object.keys(oldDeps), ...Object.keys(newDeps)])]
+    .filter((name) => oldDeps[name] !== newDeps[name])
+    .sort();
+  for (const name of names) {
+    if (RUNTIME_PACKAGES.has(name))
+      throw new Ambiguous(`${PACKAGE_JSON} changed ${name}`);
+  }
+  return names;
+}
+
+// Bare package names a file loads, without subpaths or node: builtins.
+function packageImports(file) {
+  const names = new Set();
+  for (const { spec } of specifiers(read(file))) {
+    if (spec.startsWith('.') || spec.startsWith('node:')) continue;
+    const parts = spec.split('/');
+    names.add(spec.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]);
+  }
+  return names;
+}
 
 // Feature ids are data here: a new id can only reach code that names it, unless the caller builds the id at runtime.
 const FEATURE_MISSING_DOC = 'functions/src/featureMissingDoc.ts';
@@ -82,7 +129,12 @@ function reachesFeatureIds(files, ids) {
     const path = toRepo(file);
     if (path === FEATURE_MISSING_DOC) continue;
     if (RUNTIME_FEATURE_ID_CALLERS.includes(path)) return true;
-    if (/\b(?:ADMIN_PREVIEW_FEATURES|PUBLIC_MISSING_DOC_FEATURES)\b/.test(read(file))) return true;
+    if (
+      /\b(?:ADMIN_PREVIEW_FEATURES|PUBLIC_MISSING_DOC_FEATURES)\b/.test(
+        read(file)
+      )
+    )
+      return true;
     const source = read(file);
     if (
       ids.some((id) =>
@@ -109,7 +161,8 @@ function typeOnly(statement) {
     .map((name) => name.trim())
     .filter(Boolean);
   return (
-    names.length > 0 && names.every((name) => /^type\s+(?!as\b)[A-Za-z_$]/.test(name))
+    names.length > 0 &&
+    names.every((name) => /^type\s+(?!as\b)[A-Za-z_$]/.test(name))
   );
 }
 
@@ -235,12 +288,20 @@ function changedBarrelExports(exports) {
 }
 
 function affected(changed) {
-  const relevant = changed.filter(
+  let relevant = changed.filter(
     (path) =>
       path.startsWith('functions/') &&
       !NO_RUNTIME_EFFECT.some((re) => re.test(path))
   );
-  if (relevant.length === 0) return [];
+  // A lockfile change is attributed to the package.json change beside it; alone it could be anything.
+  let deps = [];
+  if (relevant.includes(PACKAGE_JSON)) {
+    deps = changedDependencies();
+    relevant = relevant.filter(
+      (path) => path !== PACKAGE_JSON && path !== LOCKFILE
+    );
+  }
+  if (relevant.length === 0 && deps.length === 0) return [];
 
   const changedSources = new Set();
   for (const path of relevant) {
@@ -262,8 +323,10 @@ function affected(changed) {
   const featureFile = join(repoRoot, FEATURE_MISSING_DOC);
   const addedIds = changedSources.has(featureFile) ? addedFeatureIds() : null;
   const unattributed = new Set(changedSources);
+  const unimported = new Set(deps);
+  const imports = new Map();
   for (const [name, { module }] of exports) {
-    if (names.includes(name)) continue;
+    if (names.includes(name) && deps.length === 0) continue;
     if (!closures.has(module)) closures.set(module, closure(module));
     const files = closures.get(module);
     const hits = [...changedSources].filter((file) => files.has(file));
@@ -274,8 +337,24 @@ function affected(changed) {
         addedIds === null ||
         reachesFeatureIds(files, addedIds)
     );
-    if (real.length > 0) names.push(name);
+    let usesDep = false;
+    for (const file of deps.length > 0 ? files : []) {
+      if (!file.endsWith('.ts')) continue;
+      if (!imports.has(file)) imports.set(file, packageImports(file));
+      for (const dep of deps) {
+        if (imports.get(file).has(dep)) {
+          usesDep = true;
+          unimported.delete(dep);
+        }
+      }
+    }
+    if ((real.length > 0 || usesDep) && !names.includes(name)) names.push(name);
   }
+  // A dependency no deployed code imports by name may still be loaded another way (a peer, require.resolve).
+  if (unimported.size > 0)
+    throw new Ambiguous(
+      `${PACKAGE_JSON} changed ${[...unimported].join(', ')}, which no function imports by name`
+    );
   // A non-TS file no function imports may still be read at runtime (fs, __dirname).
   for (const file of unattributed) {
     if (!file.endsWith('.ts'))

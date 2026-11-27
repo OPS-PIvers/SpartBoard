@@ -25,11 +25,13 @@ function affected(
   changed: string[],
   root = repoRoot,
   oldIndex?: string,
-  oldFeatureMissingDoc?: string
+  oldFeatureMissingDoc?: string,
+  oldPackage?: string
 ): string[] | 'ALL' {
   const env = { ...process.env };
   delete env.AFFECTED_FUNCTIONS_OLD_INDEX;
   delete env.AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC;
+  delete env.AFFECTED_FUNCTIONS_OLD_PACKAGE;
   const deployedCopy = (name: string, content: string) => {
     const file = join(mkdtempSync(join(tmpdir(), 'deployed-')), name);
     writeFileSync(file, content);
@@ -42,6 +44,12 @@ function affected(
     env.AFFECTED_FUNCTIONS_OLD_FEATURE_MISSING_DOC = deployedCopy(
       'featureMissingDoc.ts',
       oldFeatureMissingDoc
+    );
+  }
+  if (oldPackage !== undefined) {
+    env.AFFECTED_FUNCTIONS_OLD_PACKAGE = deployedCopy(
+      'package.json',
+      oldPackage
     );
   }
   const result = spawnSync('node', [affectedScript, root], {
@@ -312,6 +320,107 @@ describe('affected-functions.mjs edge cases', () => {
       },
       (root) => expect(affected(['functions/src/shared.ts'], root)).toBe('ALL')
     );
+  });
+});
+
+describe('affected-functions.mjs dependency changes', () => {
+  const pkg = (
+    deps: Record<string, string>,
+    extra: Record<string, unknown> = {}
+  ) =>
+    JSON.stringify({
+      name: 'functions',
+      main: 'lib/index.js',
+      scripts: { build: 'tsc' },
+      dependencies: {
+        'firebase-admin': '^13.0.0',
+        axios: '^1.0.0',
+        ajv: '^8.0.0',
+        ...deps,
+      },
+      devDependencies: { typescript: '~6.0.0' },
+      ...extra,
+    });
+  const files = {
+    'functions/src/index.ts': [
+      "export { a } from './a';",
+      "export { b } from './b';",
+      "export { c } from './c';",
+      "export { d } from './d';",
+      "export { e } from './e';",
+    ].join('\n'),
+    'functions/src/http.ts':
+      "import axios from 'axios';\nexport const get = axios.get;",
+    'functions/src/a.ts':
+      "import { get } from './http';\nexport const a = get;",
+    'functions/src/b.ts':
+      "import Ajv from 'ajv/dist/2020';\nexport const b = new Ajv();",
+    'functions/src/c.ts':
+      "import { readFile } from 'node:fs';\nexport const c = readFile;",
+    'functions/src/d.ts': 'export const d = 1;',
+    'functions/src/e.ts': 'export const e = 1;',
+    'functions/package.json': pkg({ axios: '^1.1.0' }),
+  };
+  const both = ['functions/package.json', 'functions/pnpm-lock.yaml'];
+
+  it('names only the functions that import a bumped dependency', () => {
+    withFixture(files, (root) => {
+      expect(affected(both, root, undefined, undefined, pkg({}))).toEqual([
+        'a',
+      ]);
+      expect(
+        affected(
+          both,
+          root,
+          undefined,
+          undefined,
+          pkg({ axios: '^1.1.0', ajv: '^7.0.0' })
+        )
+      ).toEqual(['b']);
+    });
+  });
+
+  it('names nothing for script and devDependency changes', () => {
+    withFixture(files, (root) => {
+      const old = JSON.parse(pkg({ axios: '^1.1.0' })) as {
+        scripts: Record<string, string>;
+        devDependencies: Record<string, string>;
+      };
+      old.scripts.build = 'tsc -p .';
+      old.devDependencies.typescript = '~5.9.0';
+      expect(
+        affected(both, root, undefined, undefined, JSON.stringify(old))
+      ).toEqual([]);
+    });
+  });
+
+  it('deploys everything when the change could reach code it cannot trace', () => {
+    withFixture(files, (root) => {
+      const cases: Array<[string, string[]]> = [
+        [
+          pkg({ axios: '^1.1.0' }, { pnpm: { overrides: { hono: '^4.0.0' } } }),
+          both,
+        ],
+        [pkg({ axios: '^1.1.0' }, { packageManager: 'pnpm@9.0.0' }), both],
+        [pkg({ axios: '^1.1.0', 'firebase-admin': '^12.0.0' }), both],
+        [pkg({ axios: '^1.1.0', unused: '^1.0.0' }), both],
+      ];
+      for (const [old, changed] of cases) {
+        expect(affected(changed, root, undefined, undefined, old), old).toBe(
+          'ALL'
+        );
+      }
+      expect(affected(both, root)).toBe('ALL');
+      expect(
+        affected(
+          ['functions/pnpm-lock.yaml'],
+          root,
+          undefined,
+          undefined,
+          pkg({})
+        )
+      ).toBe('ALL');
+    });
   });
 });
 
