@@ -562,6 +562,22 @@ describe('quiz_sessions/responses — student-role gate', () => {
         setDoc(doc(asStudentA(), `${respPath(LEGACY)}/history/h2`), newHist())
       );
     });
+
+    it('lets an anonymous PIN owner create their own history', async () => {
+      const anonResp = `quiz_sessions/${SESSION_A}/responses/pin-p1-5678`;
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), anonResp), {
+          ...baseResp('5678'),
+          studentUid: ANON_UID,
+        });
+      });
+      await assertSucceeds(
+        setDoc(
+          doc(asAnonStudentBareToken(), `${anonResp}/history/h2`),
+          newHist()
+        )
+      );
+    });
   });
 
   it('anonymous PIN student can create response without studentRole restriction', async () => {
