@@ -74,6 +74,7 @@ const SESSION_WATCHED = [
   'publicSteps',
   'publicQuestions',
   'questionsInContent',
+  'rubricRefreshedAt',
   'sections',
   'kind',
   'workKind',

@@ -172,6 +172,7 @@ import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
 import { CountedChoicesPicker } from './results/CountedChoicesPicker';
 import { saveCountedChoices } from '@/hooks/quizCountedChoicesWrite';
 import { acceptFibAnswer } from '@/hooks/quizAcceptFibAnswer';
+import { refreshRubricForSession } from '@/hooks/quizRubricRefresh';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { overAnsweredResponseSections } from '@/utils/quizSections';
 import {
@@ -195,8 +196,8 @@ import {
 } from '@/utils/quizStudentReportPrint';
 import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
 import {
-  rescoreRubricGrades,
   applyRubricEdit,
+  RUBRIC_SCORES_FAILED,
   saveRubricThenRescore,
 } from '@/utils/rubricPoints';
 import { ResultsPrintModal } from './ResultsPrintModal';
@@ -945,22 +946,23 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // Students graded at a level take its new points; typed overrides keep theirs.
   const saveRubricAndRescore = onSaveRubric
     ? async (rubric: import('@/types').Rubric) => {
-        const { before } = applyRubricEdit(quiz.questions, rubric);
+        const { before, questions: edited } = applyRubricEdit(
+          quiz.questions,
+          rubric
+        );
         await saveRubricThenRescore(
           () => onSaveRubric(rubric),
           async () => {
             if (!before || !session || user?.uid !== session.teacherUid) return;
-            const writes = responses.flatMap((r) => {
-              const key = r._responseKey ?? r.studentUid;
-              if (!key || !r.grading) return [];
-              return rescoreRubricGrades(before, rubric, r.grading).map(
-                ([gradingKeyStr, grade]) =>
-                  saveWrittenGrade(key, gradingKeyStr, grade)
-              );
+            // Served questions, the server key and saved scores follow the new total.
+            await refreshRubricForSession({
+              sessionId: session.id,
+              rubric,
+              before,
+              quiz: { ...quiz, questions: edited },
+            }).catch(() => {
+              throw new Error(RUBRIC_SCORES_FAILED);
             });
-            const results = await Promise.allSettled(writes);
-            if (results.some((x) => x.status === 'rejected'))
-              throw new Error('Rubric saved, but some scores did not update.');
           }
         );
       }
