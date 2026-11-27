@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Rubric } from '@/types';
-import { applyRubricEdit, sameRubricContent } from './rubricPoints';
+import {
+  applyRubricEdit,
+  RubricLibraryError,
+  sameRubricContent,
+  saveRubricThenRescore,
+  updateLibraryRubrics,
+} from './rubricPoints';
 
 const rubric = (criterionIds: string[], top: number, id = 'lib-1'): Rubric => ({
   id,
@@ -100,6 +106,42 @@ describe('applyRubricEdit', () => {
     expect(out.changed).toBe(true);
   });
 
+  it('compares the library against the main rubric, not a modified copy with the same criteria', () => {
+    const renamedCopy: Rubric = {
+      ...main,
+      criteria: main.criteria.map((c) => ({
+        ...c,
+        name: `${c.name} (support)`,
+      })),
+    };
+    const out = applyRubricEdit(
+      [
+        {
+          rubricSnapshot: rubric(['z'], 2, 'lib-2'),
+          modifiedRubricSnapshot: renamedCopy,
+        },
+        { rubricId: 'lib-1', rubricSnapshot: main, points: 4 },
+      ],
+      { ...main, title: 'Essay v2' }
+    );
+    expect(out.before).toBe(main);
+  });
+
+  it('lets a legacy question whose totals already differ be edited', () => {
+    const legacyModified = rubric(['a-mod', 'b-mod'], 3);
+    const q = {
+      rubricSnapshot: main,
+      modifiedRubricSnapshot: legacyModified,
+      points: 4,
+    };
+    expect(
+      applyRubricEdit([q], { ...main, title: 'Essay v2' }).requiredTotal
+    ).toBeUndefined();
+    expect(
+      applyRubricEdit([q], rubric(['a', 'b'], 1)).requiredTotal
+    ).toBeUndefined();
+  });
+
   it('leaves questions with another rubric untouched', () => {
     const q = { rubricId: 'lib-2', rubricSnapshot: rubric(['z'], 2, 'lib-2') };
     const out = applyRubricEdit([q], rubric(['a', 'b'], 3));
@@ -114,5 +156,120 @@ describe('sameRubricContent', () => {
     expect(sameRubricContent(main, { ...main, updatedAt: 99 })).toBe(true);
     expect(sameRubricContent(main, rubric(['a', 'b'], 3))).toBe(false);
     expect(sameRubricContent(main, { ...main, title: 'Other' })).toBe(false);
+  });
+});
+
+describe('saveRubricThenRescore', () => {
+  it('still rescores when only the library write failed, then reports it', async () => {
+    const rescore = vi.fn().mockResolvedValue(undefined);
+    await expect(
+      saveRubricThenRescore(
+        () => Promise.reject(new RubricLibraryError('library')),
+        rescore
+      )
+    ).rejects.toThrow('library');
+    expect(rescore).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips rescoring when the quiz itself did not save', async () => {
+    const rescore = vi.fn().mockResolvedValue(undefined);
+    await expect(
+      saveRubricThenRescore(() => Promise.reject(new Error('quiz')), rescore)
+    ).rejects.toThrow('quiz');
+    expect(rescore).not.toHaveBeenCalled();
+  });
+
+  it('reports a rescore failure over the library one', async () => {
+    await expect(
+      saveRubricThenRescore(
+        () => Promise.reject(new RubricLibraryError('library')),
+        () => Promise.reject(new Error('scores'))
+      )
+    ).rejects.toThrow('scores');
+  });
+});
+
+describe('updateLibraryRubrics', () => {
+  const edited = { ...main, id: 'snap-1', title: 'Essay v2' };
+  const libraryOf = (r: Rubric) => ({ ...r, id: 'lib-1' });
+
+  it('writes the edit when the library still matches the quiz', async () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const out = await updateLibraryRubrics(['lib-1'], edited, main, {
+      get: () => Promise.resolve(libraryOf(main)),
+      save,
+    });
+    expect(out.kept).toBe(false);
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'lib-1', title: 'Essay v2' })
+    );
+  });
+
+  it('keeps a library copy with newer edits', async () => {
+    const save = vi.fn();
+    const out = await updateLibraryRubrics(['lib-1'], edited, main, {
+      get: () => Promise.resolve(libraryOf({ ...main, title: 'Mine' })),
+      save,
+    });
+    expect(out.kept).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('turns a failed library write into a RubricLibraryError and still rescores', async () => {
+    const rescore = vi.fn().mockResolvedValue(undefined);
+    const failing = updateLibraryRubrics(
+      ['lib-1'],
+      { ...edited, id: 'snap-fail' },
+      main,
+      {
+        get: () => Promise.resolve(libraryOf(main)),
+        save: () => Promise.reject(new Error('offline')),
+      }
+    );
+    await expect(failing).rejects.toBeInstanceOf(RubricLibraryError);
+    await expect(
+      saveRubricThenRescore(
+        () =>
+          updateLibraryRubrics(
+            ['lib-1'],
+            { ...edited, id: 'snap-fail2' },
+            main,
+            {
+              get: () => Promise.resolve(libraryOf(main)),
+              save: () => Promise.reject(new Error('offline')),
+            }
+          ).then(() => undefined),
+        rescore
+      )
+    ).rejects.toBeInstanceOf(RubricLibraryError);
+    expect(rescore).toHaveBeenCalledTimes(1);
+  });
+
+  it('still overwrites the old library copy on a retry, when the quiz already holds the edit', async () => {
+    const retried = { ...edited, id: 'snap-retry' };
+    const library = libraryOf(main);
+    await expect(
+      updateLibraryRubrics(['lib-1'], retried, main, {
+        get: () => Promise.resolve(library),
+        save: () => Promise.reject(new Error('offline')),
+      })
+    ).rejects.toBeInstanceOf(RubricLibraryError);
+    const save = vi.fn().mockResolvedValue(undefined);
+    const out = await updateLibraryRubrics(['lib-1'], retried, retried, {
+      get: () => Promise.resolve(library),
+      save,
+    });
+    expect(out.kept).toBe(false);
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a library copy that already equals the edit as up to date', async () => {
+    const save = vi.fn();
+    const out = await updateLibraryRubrics(['lib-1'], edited, edited, {
+      get: () => Promise.resolve(libraryOf(edited)),
+      save,
+    });
+    expect(out.kept).toBe(false);
+    expect(save).not.toHaveBeenCalled();
   });
 });

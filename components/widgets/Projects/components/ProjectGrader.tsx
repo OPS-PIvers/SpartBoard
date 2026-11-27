@@ -29,6 +29,7 @@ import {
 import { useProjectGrades } from '@/hooks/useProjectGrades';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { RubricScoringPanel } from '@/components/widgets/QuizWidget/components/RubricScoringPanel';
+import { useForgetOpenCriteriaOnUnmount } from '@/hooks/useRubricOpenCriteriaMemory';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { clampPoints } from '@/utils/gradeDraft';
 import { Toggle } from '@/components/common/Toggle';
@@ -72,6 +73,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
   onClose,
 }) => {
   const { gradesByGroupId, loading, saveGrade } = useProjectGrades(run.id);
+  useForgetOpenCriteriaOnUnmount();
   // The same HMAC pseudonyms `commitProjectGroupsV1` minted, so a member uid
   // resolves to a real name here without any project-specific backend.
   const { byStudentUid } = useAssignmentPseudonymsMulti(

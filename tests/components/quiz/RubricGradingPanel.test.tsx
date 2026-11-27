@@ -246,6 +246,54 @@ describe('RubricGradingPanel', () => {
     expect(meets).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('snaps a score that sits off its level to the level points instead of clearing it', () => {
+    const { onChange } = renderPanel({
+      initialScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 2.5 }],
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Meets, 3 pts' }));
+    expect(onChange).toHaveBeenLastCalledWith(
+      [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
+      3
+    );
+  });
+
+  it('forgets open criteria once the hosting grader closes', async () => {
+    const { useForgetOpenCriteriaOnUnmount } =
+      await import('@/hooks/useRubricOpenCriteriaMemory');
+    const Host = () => {
+      useForgetOpenCriteriaOnUnmount();
+      return (
+        <RubricScoringPanel
+          rubric={{ ...rubric, id: 'remembered' }}
+          maxPoints={6}
+          onChange={vi.fn()}
+        />
+      );
+    };
+    const auth: AuthContextType = {
+      ...mockAuth,
+      canAccessFeature: () => true,
+      rubricLevelOrder: 'high-first',
+      rubricAutoAdvance: false,
+      rubricOpenNext: true,
+      updateAccountPreferences: vi.fn().mockResolvedValue(undefined),
+    };
+    const mount = () =>
+      render(
+        <AuthContext.Provider value={auth}>
+          <Host />
+        </AuthContext.Provider>
+      );
+    const first = mount();
+    openCriterion('Thesis');
+    first.unmount();
+    mount();
+    expect(screen.getByRole('button', { name: /^Thesis/ })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
   it('shows criterion and level descriptions only when expanded', () => {
     renderPanel();
     expect(screen.queryByText('Clarity of the claim')).toBeNull();
@@ -443,6 +491,35 @@ describe('Full rubric table editing', () => {
       target: { value: '1' },
     });
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('keeps the level points when a points field is cleared', async () => {
+    const onSave = vi
+      .fn<(r: Rubric) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const { RubricTableModal } =
+      await import('@/components/widgets/QuizWidget/components/RubricTableModal');
+    render(
+      <RubricTableModal
+        rubric={rubric}
+        order="high-first"
+        onOrderChange={vi.fn()}
+        scores={new Map()}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
+    const field = screen.getByLabelText('Criterion 2 level 1 points');
+    fireEvent.change(field, { target: { value: '' } });
+    expect(field).toHaveValue(null);
+    fireEvent.blur(field);
+    expect(field).toHaveValue(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(
+      onSave.mock.calls[0][0].criteria[1].levels.map((l) => l.points)
+    ).toEqual([1, 2]);
   });
 
   it('adds and removes criteria and levels in the builder table', async () => {
