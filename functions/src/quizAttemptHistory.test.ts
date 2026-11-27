@@ -313,6 +313,7 @@ describe('applyAttemptWrite', () => {
         status: 'done',
         editedAt: 5,
         editedBy: 't1',
+        updatedAt: T,
         newerScan: { scanId: 's2' },
       },
     });
@@ -332,6 +333,25 @@ describe('applyAttemptWrite', () => {
     const graded = done();
     stub.store.set(RESPONSE, done({ completedAttempts: 2 }));
     await applyAttemptWrite(stub.db as unknown as Db, write(graded, reset()));
+    expect(stub.get(P)?.editedAt).toBe(5);
+  });
+
+  it('keeps a paper edit made after the retake event', async () => {
+    const P = `${RESPONSE}/paperPrivate/q1`;
+    const stub = seed({
+      [P]: { scanId: 's1', editedAt: T + 99, updatedAt: T + 99 },
+    });
+    const graded = done();
+    await apply(stub, write(undefined, graded));
+    await apply(stub, write(graded, reset()));
+    expect(stub.get(P)?.editedAt).toBe(T + 99);
+  });
+
+  it('keeps paper edits when an uncompleted doc is on another attempt', async () => {
+    const P = `${RESPONSE}/paperPrivate/q1`;
+    const stub = seed({ [P]: { scanId: 's1', editedAt: 5, updatedAt: T } });
+    stub.store.set(RESPONSE, reset({ completedAttempts: 2 }));
+    await applyAttemptWrite(stub.db as unknown as Db, write(done(), reset()));
     expect(stub.get(P)?.editedAt).toBe(5);
   });
 

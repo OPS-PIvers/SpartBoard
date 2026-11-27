@@ -254,23 +254,20 @@ async function clearCarriedPaperEdits(
   before: Doc
 ): Promise<void> {
   const ref = responseRef(db, w.sessionId, w.responseKey);
-  const privates = await ref.collection(PAPER_PRIVATE_SUBCOLLECTION).get();
-  const stale = privates.docs.filter((d) => {
-    const p = d.data() ?? {};
-    return (
-      p.editedAt !== undefined ||
-      p.editedBy !== undefined ||
-      p.newerScan !== undefined
-    );
-  });
-  if (stale.length === 0) return;
   await db.runTransaction(async (tx) => {
     const fresh = (await tx.get(ref)).data();
     if (!fresh || isCompleted(fresh) || fresh.unlocked === true) return;
     if (fresh.completedAttempts !== before.completedAttempts) return;
+    const privates = await tx.get(ref.collection(PAPER_PRIVATE_SUBCOLLECTION));
     const del = admin.firestore.FieldValue.delete();
-    for (const d of stale)
+    for (const d of privates.docs) {
+      const p = d.data();
+      if (!p) continue;
+      if (p.editedAt === undefined && p.newerScan === undefined) continue;
+      // An edit after this event belongs to the new attempt.
+      if (typeof p.updatedAt === 'number' && p.updatedAt > w.eventAt) continue;
       tx.update(d.ref, { editedAt: del, editedBy: del, newerScan: del });
+    }
   });
 }
 
