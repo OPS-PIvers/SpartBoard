@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 
 interface MockDocInput {
   id: string;
@@ -3008,6 +3008,41 @@ describe('getPseudonymsForAssignmentV1', () => {
     expect(result.pseudonyms['student-1-sid'].targetRefKey).toBe(
       'classlink:student-1-sid'
     );
+  });
+
+  it('returns every student of a class larger than the ClassLink default page', async () => {
+    const roster = Array.from({ length: 150 }, (_, i) => ({
+      sourcedId: `s-${i}`,
+      givenName: 'S',
+      familyName: String(i),
+    }));
+    vi.mocked(axios.get).mockImplementation(
+      (url: string, cfg?: AxiosRequestConfig) => {
+        if (url.endsWith('/ims/oneroster/v1p1/users')) {
+          return Promise.resolve({
+            data: { users: [{ sourcedId: 't', role: 'teacher' }] },
+          });
+        }
+        if (url.endsWith('/classes')) {
+          return Promise.resolve({ data: { classes: [{ sourcedId: 'c-1' }] } });
+        }
+        // ClassLink serves 100 rows unless told otherwise.
+        const params = (cfg?.params ?? {}) as Record<string, string>;
+        const limit = Number(params.limit ?? 100);
+        const offset = Number(params.offset ?? 0);
+        return Promise.resolve({
+          data: { users: roster.slice(offset, offset + limit) },
+        });
+      }
+    );
+
+    const handler = getPseudonymsForAssignmentV1 as any;
+    const result = (await handler(
+      { assignmentId: 'asn-1', classId: 'c-1' },
+      { auth: TEACHER_AUTH }
+    )) as { pseudonyms: Record<string, unknown> };
+
+    expect(Object.keys(result.pseudonyms)).toHaveLength(150);
   });
 
   it("rejects with permission-denied when the requested classId isn't in the teacher's classes", async () => {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { CustomWidgetConfig, CustomWidgetSettingDef } from '@/types';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
+import { DraftNumberField } from '@/components/admin/DraftNumberField';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 type SettingValue = string | number | boolean;
@@ -91,18 +92,10 @@ const CustomWidgetSettingsForm: React.FC<SettingsFormProps> = ({
                     </span>
                   </label>
                 ) : definition.type === 'number' ? (
-                  <input
+                  <DraftNumberField
                     id={`${ctx.id}-${definition.key}`}
-                    type="number"
-                    value={String(value ?? 0)}
-                    onChange={(event) =>
-                      change(
-                        definition.key,
-                        Number.isNaN(event.target.valueAsNumber)
-                          ? 0
-                          : event.target.valueAsNumber
-                      )
-                    }
+                    value={Number.isFinite(Number(value)) ? Number(value) : 0}
+                    onCommit={(n) => change(definition.key, n)}
                     {...tourFieldAttr(
                       'widget-settings.custom-widget.definition-input',
                       ctx.widget.type,

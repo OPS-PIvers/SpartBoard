@@ -1213,21 +1213,15 @@ export const getPseudonymsForAssignmentV1 = onCall(
           'Teacher not found in ClassLink roster.'
         );
       }
-      const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacherUser.sourcedId}/classes`;
-      const classesHeaders = getOAuthHeaders(
-        classesUrl,
-        {},
-        'GET',
-        classlinkClientId,
-        classlinkClientSecret
+      const oneRosterCreds = { classlinkClientId, classlinkClientSecret };
+      const classes = await fetchOneRosterPages<ClassLinkClass>(
+        `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacherUser.sourcedId}/classes`,
+        'classes',
+        oneRosterCreds,
+        true
       );
-      const classesResp = await axios.get<{ classes: ClassLinkClass[] }>(
-        classesUrl,
-        { headers: { ...classesHeaders } }
-      );
-      const teaches = (classesResp.data.classes ?? []).some(
-        (c) => c.sourcedId === classId
-      );
+      if (!classes) throw new Error('class list truncated');
+      const teaches = classes.some((c) => c.sourcedId === classId);
       if (!teaches) {
         throw new HttpsError(
           'permission-denied',
@@ -1236,19 +1230,13 @@ export const getPseudonymsForAssignmentV1 = onCall(
       }
 
       // Now fetch the class's students and compute the pseudonym map.
-      const studentsUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/classes/${classId}/students`;
-      const studentsHeaders = getOAuthHeaders(
-        studentsUrl,
-        {},
-        'GET',
-        classlinkClientId,
-        classlinkClientSecret
+      const students = await fetchOneRosterPages<ClassLinkStudent>(
+        `${cleanTenantUrl}${ONEROSTER_BASE}/classes/${classId}/students`,
+        'users',
+        oneRosterCreds,
+        true
       );
-      const studentsResp = await axios.get<{ users: ClassLinkStudent[] }>(
-        studentsUrl,
-        { headers: { ...studentsHeaders } }
-      );
-      const students = studentsResp.data.users ?? [];
+      if (!students) throw new Error('student list truncated');
       const currentIds = students
         .map((st) => st.sourcedId)
         .filter((id): id is string => !!id);
