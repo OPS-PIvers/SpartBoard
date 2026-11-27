@@ -32,7 +32,7 @@ vi.mock('@/hooks/useAssignmentDetailActions', async () => {
   return { ...actual, useAssignmentDetailActions: vi.fn() };
 });
 vi.mock('@/config/firebase', () => ({ db: {} }));
-const sessionSnaps = vi.hoisted(() => ({
+const sessionSnaps = vi.hoisted((): { emit: Record<string, unknown> } => ({
   emit: {},
 }));
 vi.mock('firebase/firestore', () => ({
