@@ -2,17 +2,10 @@
 // — the PLC Common Assessment object (Decision 4.0c, §3.6) — AND the adjacent
 // server-only `plcs/{plcId}/aggregates` block (Decisions 6.0 + 3.3, §4).
 //
-// Pins the invariants introduced in the PLC redesign Wave 3:
-//   - Only current PLC members can read/create/update/delete assessments.
-//   - On create: `id` must equal the assessmentId path segment, `createdBy`
-//     must equal the caller's uid, `kind` ∈ {quiz, video-activity}, `status`
-//     ∈ {planning, active, reviewing, closed}, `syncGroupId` is a non-empty
-//     string, schema is locked via `keys().hasOnly([...])`.
-//   - On update: `id`, `createdBy`, `createdAt`, `kind`, and `syncGroupId` are
-//     immutable; the working fields + `deletedAt` soft-delete are mutable.
-//   - Soft-delete via `deletedAt` is allowed; serverTimestamp() time fields
-//     dual-accept (`int || timestamp`).
-//   - Non-members cannot read or write.
+// Pins:
+//   - Only current PLC members can read assessments; clients can no longer
+//     create, edit or delete them (plcContentWriteV1 writes them), except a
+//     folder move or list-order change.
 //   - Aggregates: members may READ; clients may NEVER create/update/delete
 //     (writes are server-only / Admin SDK).
 //
@@ -27,14 +20,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import {
-  setDoc,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-} from 'firebase/firestore';
+import { setDoc, getDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-assessments-rules';
 const PLC_ID = 'p1';
@@ -153,134 +139,55 @@ describe('plcs/{plcId}/assessments — read', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Create
+// Create, edit and delete: refused for clients (plcContentWriteV1 writes them)
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/assessments — create', () => {
-  it('member can create an assessment with the locked schema', async () => {
-    await assertSucceeds(setDoc(assessmentRef(asMember()), validAssessment()));
-  });
+describe('plcs/{plcId}/assessments — client writes refused', () => {
+  const newRef = (db: ReturnType<typeof asMember>) =>
+    doc(db, `plcs/${PLC_ID}/assessments/a2`);
+  beforeEach(() => seedAssessment());
 
-  it('member can create a video-activity assessment', async () => {
-    await assertSucceeds(
-      setDoc(
-        assessmentRef(asMember()),
-        validAssessment({ kind: 'video-activity' })
-      )
-    );
-  });
-
-  it('accepts serverTimestamp() for createdAt / updatedAt (dual-accept)', async () => {
-    await assertSucceeds(
-      setDoc(
-        assessmentRef(asMember()),
-        validAssessment({
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
-      )
-    );
-  });
-
-  it('accepts null opensAt / dueAt (optional, nullable scheduling fields)', async () => {
-    await assertSucceeds(
-      setDoc(
-        assessmentRef(asMember()),
-        validAssessment({ opensAt: null, dueAt: null })
-      )
-    );
-  });
-
-  it('accepts an assessment that omits the optional scheduling fields', async () => {
-    const {
-      unitLabel: _u,
-      opensAt: _o,
-      dueAt: _d,
-      ...minimal
-    } = validAssessment();
-    await assertSucceeds(setDoc(assessmentRef(asMember()), minimal));
-  });
-
-  it('accepts sourceQuizId (string) and dirtyAt: null on create', async () => {
-    await assertSucceeds(
-      setDoc(
-        assessmentRef(asMember()),
-        validAssessment({ sourceQuizId: 'quiz-1', dirtyAt: null })
-      )
-    );
-  });
-
-  it('rejects a non-string sourceQuizId', async () => {
+  it('a member can no longer create an assessment directly', async () => {
     await assertFails(
-      setDoc(assessmentRef(asMember()), validAssessment({ sourceQuizId: 7 }))
+      setDoc(newRef(asMember()), validAssessment({ id: 'a2' }))
     );
   });
 
-  it('rejects create with a real dirtyAt (server-owned; clients may only write null)', async () => {
+  it('a non-member cannot create an assessment either', async () => {
     await assertFails(
-      setDoc(assessmentRef(asMember()), validAssessment({ dirtyAt: 123 }))
+      setDoc(newRef(asNonMember()), validAssessment({ id: 'a2' }))
     );
   });
 
-  it('non-member cannot create an assessment', async () => {
+  it('a member can no longer edit working fields or rewrite the doc', async () => {
     await assertFails(
-      setDoc(
-        assessmentRef(asNonMember()),
-        validAssessment({ createdBy: NON_MEMBER_UID })
-      )
+      updateDoc(assessmentRef(asMember()), { title: 'x', status: 'active' })
     );
-  });
-
-  it('rejects create when id field does not match assessmentId path segment', async () => {
     await assertFails(
-      setDoc(assessmentRef(asMember()), validAssessment({ id: 'different-id' }))
-    );
-  });
-
-  it('rejects create when createdBy does not match caller uid', async () => {
-    await assertFails(
-      setDoc(
-        assessmentRef(asMember()),
-        validAssessment({ createdBy: OTHER_MEMBER_UID })
-      )
-    );
-  });
-
-  it('rejects create with an unknown kind', async () => {
-    await assertFails(
-      setDoc(assessmentRef(asMember()), validAssessment({ kind: 'essay' }))
-    );
-  });
-
-  it('rejects create with an unknown status', async () => {
-    await assertFails(
-      setDoc(assessmentRef(asMember()), validAssessment({ status: 'archived' }))
-    );
-  });
-
-  it('rejects create with an empty syncGroupId', async () => {
-    await assertFails(
-      setDoc(assessmentRef(asMember()), validAssessment({ syncGroupId: '' }))
-    );
-  });
-
-  it('rejects create with an extra unknown field (schema lock-down)', async () => {
-    await assertFails(
-      setDoc(assessmentRef(asMember()), {
+      setDoc(assessmentRef(asOtherMember()), {
         ...validAssessment(),
-        unexpected: 'extra-field',
+        title: 'Unit 4 CFA (revised)',
+        updatedAt: 2000,
       })
     );
   });
 
-  it('rejects create missing required field title', async () => {
-    const { title: _title, ...withoutTitle } = validAssessment();
-    await assertFails(setDoc(assessmentRef(asMember()), withoutTitle));
+  it('a member can no longer soft-delete or restore through deletedAt', async () => {
+    await assertFails(
+      updateDoc(assessmentRef(asMember()), { deletedAt: 5000, updatedAt: 5000 })
+    );
   });
 
-  it('rejects create missing required field status', async () => {
-    const { status: _status, ...withoutStatus } = validAssessment();
-    await assertFails(setDoc(assessmentRef(asMember()), withoutStatus));
+  it('a non-member cannot edit', async () => {
+    await assertFails(
+      updateDoc(assessmentRef(asNonMember()), { title: 'x', updatedAt: 2000 })
+    );
+  });
+
+  it('a member can no longer hard-delete an assessment', async () => {
+    await assertFails(deleteDoc(assessmentRef(asMember())));
+    await assertFails(deleteDoc(assessmentRef(asOtherMember())));
+    await assertFails(deleteDoc(assessmentRef(asNonMember())));
   });
 });
 
@@ -288,134 +195,8 @@ describe('plcs/{plcId}/assessments — create', () => {
 // Update
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/assessments — update', () => {
+describe('plcs/{plcId}/assessments — folder move and order (still direct)', () => {
   beforeEach(() => seedAssessment());
-
-  it('member can update title and status (working fields)', async () => {
-    await assertSucceeds(
-      setDoc(assessmentRef(asMember()), {
-        ...validAssessment(),
-        title: 'Unit 4 CFA (revised)',
-        status: 'active',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('any member (PLC-owned) can update an assessment they did not create', async () => {
-    await assertSucceeds(
-      updateDoc(assessmentRef(asOtherMember()), {
-        status: 'reviewing',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('accepts a serverTimestamp() updatedAt patch (dual-accept)', async () => {
-    await assertSucceeds(
-      updateDoc(assessmentRef(asMember()), {
-        status: 'active',
-        updatedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('member can soft-delete via deletedAt', async () => {
-    await assertSucceeds(
-      updateDoc(assessmentRef(asMember()), {
-        deletedAt: serverTimestamp(),
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('member can restore (clear deletedAt to null)', async () => {
-    await seedAssessment({ deletedAt: 5000 });
-    await assertSucceeds(
-      updateDoc(assessmentRef(asMember()), {
-        deletedAt: null,
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('non-member cannot update an assessment', async () => {
-    await assertFails(
-      updateDoc(assessmentRef(asNonMember()), {
-        title: 'Hacked',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects update that mutates createdBy (identity immutability)', async () => {
-    await assertFails(
-      setDoc(assessmentRef(asMember()), {
-        ...validAssessment(),
-        createdBy: OTHER_MEMBER_UID,
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects update that mutates createdAt (identity immutability)', async () => {
-    await assertFails(
-      setDoc(assessmentRef(asMember()), {
-        ...validAssessment(),
-        createdAt: 9999,
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects update that mutates kind (content type immutability)', async () => {
-    await assertFails(
-      setDoc(assessmentRef(asMember()), {
-        ...validAssessment(),
-        kind: 'video-activity',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects update that mutates syncGroupId (content pointer immutability)', async () => {
-    await assertFails(
-      setDoc(assessmentRef(asMember()), {
-        ...validAssessment(),
-        syncGroupId: 'sync-group-2',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects update to an unknown status', async () => {
-    await assertFails(
-      updateDoc(assessmentRef(asMember()), {
-        status: 'archived',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects update that mutates sourceQuizId (pointer immutability)', async () => {
-    await seedAssessment({ sourceQuizId: 'quiz-1' });
-    await assertFails(
-      updateDoc(assessmentRef(asMember()), {
-        sourceQuizId: 'quiz-2',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects update adding an extra unknown field (schema lock-down)', async () => {
-    await assertFails(
-      setDoc(assessmentRef(asMember()), {
-        ...validAssessment(),
-        rogue: true,
-        updatedAt: 2000,
-      })
-    );
-  });
 
   it('allows setting folderId (PLC_ASSESSMENT_DATA §3.4)', async () => {
     await assertSucceeds(
@@ -448,78 +229,30 @@ describe('plcs/{plcId}/assessments — update', () => {
   it('rejects an order write from a non-member', async () => {
     await assertFails(updateDoc(assessmentRef(asNonMember()), { order: 0 }));
   });
-});
 
-// ---------------------------------------------------------------------------
-// Update — server-written dirtyAt must round-trip unchanged
-// ---------------------------------------------------------------------------
-
-describe('plcs/{plcId}/assessments — update with a server-written dirtyAt', () => {
-  beforeEach(() => seedAssessment({ dirtyAt: 123 }));
-
-  it('a title patch that leaves dirtyAt alone succeeds', async () => {
+  it('allows a folder move that clears folderId to null', async () => {
     await assertSucceeds(
-      updateDoc(assessmentRef(asMember()), {
-        title: 'Renamed while dirty',
-        updatedAt: 2000,
-      })
+      updateDoc(assessmentRef(asMember()), { folderId: null })
     );
   });
 
-  it('a full setDoc that keeps dirtyAt: 123 succeeds', async () => {
-    await assertSucceeds(
-      setDoc(assessmentRef(asMember()), {
-        ...validAssessment({ dirtyAt: 123 }),
-        title: 'Renamed while dirty',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects an update that clears dirtyAt to null (only the function clears it)', async () => {
+  it('rejects a folder move from a non-member', async () => {
     await assertFails(
-      updateDoc(assessmentRef(asMember()), {
-        title: 'Renamed while dirty',
-        dirtyAt: null,
+      updateDoc(assessmentRef(asNonMember()), {
+        folderId: 'f1',
         updatedAt: 2000,
       })
     );
   });
 
-  it('rejects a full setDoc that drops dirtyAt', async () => {
+  it('rejects a title change, alone or bundled with a folder move or order', async () => {
+    await assertFails(updateDoc(assessmentRef(asMember()), { title: 'x' }));
     await assertFails(
-      setDoc(assessmentRef(asMember()), {
-        ...validAssessment(),
-        title: 'Renamed while dirty',
-        updatedAt: 2000,
-      })
+      updateDoc(assessmentRef(asMember()), { folderId: 'f1', title: 'x' })
     );
-  });
-
-  it('rejects an update that forges a different dirtyAt', async () => {
     await assertFails(
-      updateDoc(assessmentRef(asMember()), { dirtyAt: 456, updatedAt: 2000 })
+      updateDoc(assessmentRef(asMember()), { order: 1, folderId: 'f1' })
     );
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Delete
-// ---------------------------------------------------------------------------
-
-describe('plcs/{plcId}/assessments — delete', () => {
-  beforeEach(() => seedAssessment());
-
-  it('member can hard-delete an assessment', async () => {
-    await assertSucceeds(deleteDoc(assessmentRef(asMember())));
-  });
-
-  it('any member (PLC-owned) can delete an assessment they did not create', async () => {
-    await assertSucceeds(deleteDoc(assessmentRef(asOtherMember())));
-  });
-
-  it('non-member cannot delete an assessment', async () => {
-    await assertFails(deleteDoc(assessmentRef(asNonMember())));
   });
 });
 
@@ -610,13 +343,18 @@ describe('plcs/{plcId}/assessments — flashcard-check kind', () => {
     );
   });
 
-  it('a member renames, closes and files it', async () => {
+  it('a member can file it but no longer rename or close it directly', async () => {
     await seedFlashcard();
     await assertSucceeds(
       updateDoc(assessmentRef(asOtherMember()), {
+        folderId: 'f1',
+        updatedAt: 3000,
+      })
+    );
+    await assertFails(
+      updateDoc(assessmentRef(asOtherMember()), {
         title: 'Unit 4 vocab',
         status: 'closed',
-        folderId: 'f1',
         updatedAt: 3000,
       })
     );

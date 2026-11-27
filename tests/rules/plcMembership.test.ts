@@ -929,14 +929,16 @@ describe('plcs/{plcId} — removed entries keep no authority', () => {
         memberUids: [LEAD_UID, OTHER_UID],
       });
     });
-    const learningTargets = {
-      targets: [],
-      masteryCutoffs: { proficient: 1, approaching: 0 },
-      updatedAt: 2,
+    const path = `plcs/${PLC_ID}/folders/f1`;
+    const folder = {
+      name: 'Unit 1',
+      parentId: null,
+      order: 0,
+      createdAt: 1,
+      updatedAt: 1,
     };
-    const path = `plcs/${PLC_ID}/meta/learningTargets`;
-    await assertFails(setDoc(doc(asMember(), path), learningTargets));
-    await assertSucceeds(setDoc(doc(asLead(), path), learningTargets));
+    await assertFails(setDoc(doc(asMember(), path), folder));
+    await assertSucceeds(setDoc(doc(asLead(), path), folder));
   });
 
   it('an active co-lead can still create an invitation', async () => {
@@ -1015,13 +1017,13 @@ describe('plcs/{plcId} update — broad lead branch keeps memberUids in step', (
     );
   });
 
-  it('a stale removeMemberUid naming a rejoined member does not block a rename', async () => {
+  it('client write refused (plcSettingsV1 does it): a stale removeMemberUid naming a rejoined member is no way around it', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
         removeMemberUid: OTHER_UID,
       });
     });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(plcRef(), {
         name: 'Renamed',
         memberEmails: allEmails,

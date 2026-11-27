@@ -2,6 +2,7 @@
 // match block (PLC_ASSESSMENT_DATA §3.4/§4/§7.3):
 //   - membership-gated reads
 //   - non-viewer member (plcCanEditContent) create/update/delete
+//   - folder moves and list order on quizzes and assessments (the only direct writes left on them)
 //   - schema lock-down (`keys().hasOnly([...])`), non-empty `name`
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
@@ -304,3 +305,74 @@ describe('plcs/{plcId}/folders — colour', () => {
     });
   });
 });
+
+// Quizzes and assessments keep one direct write: a folder move or a list-order change.
+describe.each(['quizzes', 'assessments'])(
+  'plcs/{plcId}/%s — folder move and list order',
+  (coll) => {
+    const path = `plcs/${PLC_ID}/${coll}/item1`;
+    const ref = (db: ReturnType<typeof asMember>) => doc(db, path);
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), path), {
+          id: 'item1',
+          title: 'Unit 4',
+          syncGroupId: 'sg-1',
+          status: 'active',
+          createdBy: MEMBER_UID,
+          createdAt: 1000,
+          updatedAt: 1000,
+        });
+      });
+    });
+
+    it('a non-viewer member can move it into a folder, out again, and with an int updatedAt', async () => {
+      await assertSucceeds(updateDoc(ref(asOtherMember()), { folderId: 'f1' }));
+      await assertSucceeds(
+        updateDoc(ref(asMember()), { folderId: 'f2', updatedAt: 2000 })
+      );
+      await assertSucceeds(updateDoc(ref(asMember()), { folderId: null }));
+    });
+
+    it('a non-viewer member can change the list order with an int', async () => {
+      await assertSucceeds(updateDoc(ref(asOtherMember()), { order: 3 }));
+      await assertSucceeds(getDoc(ref(asViewer())));
+    });
+
+    it('denies a title change alone or next to a folder move or order', async () => {
+      await assertFails(updateDoc(ref(asMember()), { title: 'Renamed' }));
+      await assertFails(
+        updateDoc(ref(asMember()), { folderId: 'f1', title: 'Renamed' })
+      );
+      await assertFails(
+        updateDoc(ref(asMember()), { order: 1, title: 'Renamed' })
+      );
+    });
+
+    it('denies a folder move that also sets order, or a status change', async () => {
+      await assertFails(
+        updateDoc(ref(asMember()), { folderId: 'f1', order: 1 })
+      );
+      await assertFails(
+        updateDoc(ref(asMember()), { folderId: 'f1', status: 'closed' })
+      );
+    });
+
+    it('denies a folder move or order change from a viewer or a non-member', async () => {
+      await assertFails(updateDoc(ref(asViewer()), { folderId: 'f1' }));
+      await assertFails(updateDoc(ref(asViewer()), { order: 1 }));
+      await assertFails(updateDoc(ref(asNonMember()), { folderId: 'f1' }));
+      await assertFails(updateDoc(ref(asNonMember()), { order: 1 }));
+    });
+
+    it('denies a non-string folderId, a non-int updatedAt and a non-int order', async () => {
+      await assertFails(updateDoc(ref(asMember()), { folderId: 42 }));
+      await assertFails(
+        updateDoc(ref(asMember()), { folderId: 'f1', updatedAt: 'now' })
+      );
+      await assertFails(updateDoc(ref(asMember()), { order: 1.5 }));
+      await assertFails(updateDoc(ref(asMember()), { order: '1' }));
+    });
+  }
+);

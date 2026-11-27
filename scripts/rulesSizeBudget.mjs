@@ -5,7 +5,12 @@ export const RULES_GROWTH_BUDGET = 1500;
 export const OVERRIDE_LABEL = 'rules-size-ok';
 
 /** Pass/fail for one PR: growth over the base branch against the budget, unless the override label is on. */
-export function budgetVerdict({ compiled, baseCompiled, budget = RULES_GROWTH_BUDGET, override = false }) {
+export function budgetVerdict({
+  compiled,
+  baseCompiled,
+  budget = RULES_GROWTH_BUDGET,
+  override = false,
+}) {
   const growth = compiled - baseCompiled;
   if (growth <= budget) return { ok: true, growth };
   return { ok: override, growth, overridden: override };
@@ -14,12 +19,20 @@ export function budgetVerdict({ compiled, baseCompiled, budget = RULES_GROWTH_BU
 /** Base firestore.rules: the PR merge commit's first parent in CI, else the tip of origin/<baseRef>. */
 export function baseRulesText(baseRef) {
   const git = (...args) =>
-    execFileSync('git', args, { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    execFileSync('git', args, {
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
+    });
   try {
-    if (git('rev-list', '--parents', '-n', '1', 'HEAD').trim().split(' ').length > 2) {
+    if (
+      git('rev-list', '--parents', '-n', '1', 'HEAD').trim().split(' ').length >
+      2
+    ) {
       return git('show', 'HEAD^1:firestore.rules');
     }
-    execFileSync('git', ['fetch', '--quiet', '--depth=1', 'origin', baseRef], { stdio: 'ignore' });
+    execFileSync('git', ['fetch', '--quiet', '--depth=1', 'origin', baseRef], {
+      stdio: 'ignore',
+    });
     return git('show', 'FETCH_HEAD:firestore.rules');
   } catch {
     return null;
@@ -30,7 +43,7 @@ export function baseRulesText(baseRef) {
 // Units = expanded nodes + 3 per expanded helper call (fit to local compile times; Google takes ~2x local).
 export const COMPILE_COST_GROWTH_BUDGET = 2000;
 // Ratchet: lower this as each compile-time slice lands. ~247,000 is where Google times out on a typical day.
-export const COMPILE_COST_CEILING = 195000;
+export const COMPILE_COST_CEILING = 167000;
 export const COMPILE_COST_TARGET = 155000;
 export const COST_OVERRIDE_LABEL = 'rules-compile-ok';
 

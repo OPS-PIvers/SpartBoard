@@ -373,32 +373,20 @@ describe('synced_bank_owners/{groupId} (atomic id reservation)', () => {
 });
 
 describe('plcs/{plcId}/question_banks/{entryId}', () => {
-  it('non-viewer member creates a header attributed to self', async () => {
-    await assertSucceeds(
+  it('no one can create a header directly (plcContentWriteV1 writes it)', async () => {
+    await assertFails(
       setDoc(doc(as(OWNER_UID), entryPath('e1')), entryDoc('e1', OWNER_UID))
     );
     await assertFails(
-      setDoc(doc(as(VIEWER_UID), entryPath('e2')), entryDoc('e2', VIEWER_UID))
+      setDoc(doc(as(LEAD_UID), entryPath('e2')), entryDoc('e2', LEAD_UID))
+    );
+    await assertFails(
+      setDoc(doc(as(VIEWER_UID), entryPath('e3')), entryDoc('e3', VIEWER_UID))
     );
     await assertFails(
       setDoc(
-        doc(as(OUTSIDER_UID), entryPath('e3')),
-        entryDoc('e3', OUTSIDER_UID)
-      )
-    );
-    await assertFails(
-      setDoc(doc(as(MEMBER_UID), entryPath('e4')), entryDoc('e4', OWNER_UID))
-    );
-    await assertFails(
-      setDoc(
-        doc(as(OWNER_UID), entryPath('e5')),
-        entryDoc('e5', OWNER_UID, { syncGroupId: '' })
-      )
-    );
-    await assertFails(
-      setDoc(
-        doc(as(OWNER_UID), entryPath('e6')),
-        entryDoc('e6', OWNER_UID, { questions: [] })
+        doc(as(OUTSIDER_UID), entryPath('e4')),
+        entryDoc('e4', OUTSIDER_UID)
       )
     );
   });
@@ -414,40 +402,29 @@ describe('plcs/{plcId}/question_banks/{entryId}', () => {
     await assertFails(getDoc(doc(as(OUTSIDER_UID), entryPath('e1'))));
   });
 
-  it('sharer or lead mirrors and deletes; other members cannot; identity immutable', async () => {
+  it('no one can mirror or delete a header directly, the sharer and lead included', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), entryPath('e1')),
         entryDoc('e1', OWNER_UID)
       );
     });
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(as(OWNER_UID), entryPath('e1')), {
         title: 'Renamed',
         questionCount: 3,
         updatedAt: 2,
       })
     );
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(as(LEAD_UID), entryPath('e1')), { updatedAt: 3 })
     );
     await assertFails(
       updateDoc(doc(as(MEMBER_UID), entryPath('e1')), { updatedAt: 4 })
     );
-    await assertFails(
-      updateDoc(doc(as(OWNER_UID), entryPath('e1')), {
-        sharedBy: LEAD_UID,
-        updatedAt: 5,
-      })
-    );
-    await assertFails(
-      updateDoc(doc(as(OWNER_UID), entryPath('e1')), {
-        syncGroupId: 'other-group',
-        updatedAt: 6,
-      })
-    );
+    await assertFails(deleteDoc(doc(as(OWNER_UID), entryPath('e1'))));
+    await assertFails(deleteDoc(doc(as(LEAD_UID), entryPath('e1'))));
     await assertFails(deleteDoc(doc(as(MEMBER_UID), entryPath('e1'))));
-    await assertSucceeds(deleteDoc(doc(as(LEAD_UID), entryPath('e1'))));
   });
 });
 

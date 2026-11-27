@@ -4,13 +4,9 @@
 // invariants as Phase 1's assignment_index plus a few PLC-Library-specific
 // ones:
 //   - membership-gated reads
-//   - ANY member can create / update / delete (PLC-owned model — quizzes
-//     shared with the PLC belong to the PLC, not the original sharer)
-//   - schema lock-down (`keys().hasOnly([...])`)
-//   - identity + attribution fields immutable on update (`id`,
-//     `syncGroupId`, `sharedBy`, `sharedByEmail`, `sharedByName`,
-//     `sharedAt`)
-//   - `sharedBy` must equal the caller on create (no impersonation)
+//   - clients cannot create, edit or delete an entry (plcContentWriteV1 does)
+//   - the two direct writes left are a folder move (`folderId`, optional
+//     `updatedAt`) and a list-order change (`order`) by an editor
 //
 // Requires a running Firestore emulator — invoke via
 // `pnpm run test:rules` (see vitest.rules.config.ts).
@@ -131,23 +127,16 @@ describe('plcs/{plcId}/quizzes — read', () => {
 });
 
 // ---------------------------------------------------------------------------
-// create
+// create: refused for clients (plcContentWriteV1 writes it)
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/quizzes — create', () => {
-  it('any PLC member can create a valid entry', async () => {
-    await assertSucceeds(
+describe('plcs/{plcId}/quizzes — create refused', () => {
+  it('a member can no longer create an entry, with or without run-settings', async () => {
+    const ref = doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`);
+    await assertFails(setDoc(ref, validEntry()));
+    await assertFails(
       setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`),
-        validEntry()
-      )
-    );
-  });
-
-  it('accepts optional pickup run-settings on create', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`),
+        ref,
         validEntry({
           sessionMode: 'student',
           sessionOptions: { shuffleQuestions: true },
@@ -158,73 +147,11 @@ describe('plcs/{plcId}/quizzes — create', () => {
     );
   });
 
-  it('rejects an unknown sessionMode on create', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`),
-        validEntry({ sessionMode: 'self-paced' })
-      )
-    );
-  });
-
-  it('a non-member cannot fabricate an entry', async () => {
+  it('a non-member cannot create an entry either', async () => {
     await assertFails(
       setDoc(
         doc(asNonMember(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`),
         validEntry({ sharedBy: NON_MEMBER_UID })
-      )
-    );
-  });
-
-  it('rejects when sharedBy != caller (no impersonation)', async () => {
-    // The PLC tab displays sharedByName/Email from this snapshot — an
-    // impersonation would mislead other members about who shared the
-    // quiz, undermining the audit trail.
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`),
-        validEntry({ sharedBy: MEMBER_B_UID })
-      )
-    );
-  });
-
-  it('rejects when path id != entry.id (path/payload mismatch)', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/quizzes/different-id`),
-        validEntry({ id: PLC_QUIZ_ID })
-      )
-    );
-  });
-
-  it('rejects extra unknown fields (schema lock-down)', async () => {
-    // Closed schema — future readers shouldn't have to defensively parse
-    // unexpected payloads. Drift here would also smuggle bloat past the
-    // rule that should reject it.
-    await assertFails(
-      setDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        ...validEntry(),
-        unexpected: 'extra',
-      })
-    );
-  });
-
-  it('rejects when questionCount is negative', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`),
-        validEntry({ questionCount: -1 })
-      )
-    );
-  });
-
-  it('rejects when syncGroupId is missing/non-string', async () => {
-    // Without syncGroupId the entry can't participate in collaborative
-    // editing — the PLC tab would render an unactionable row.
-    await assertFails(
-      setDoc(
-        doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`),
-        validEntry({ syncGroupId: 42 })
       )
     );
   });
@@ -244,90 +171,50 @@ describe('plcs/{plcId}/quizzes — update', () => {
     });
   });
 
-  it('any member can mirror title/questionCount/updatedAt (collaborative-edit posture)', async () => {
-    // Phase 5 notes/todos gives any member edit rights. Phase 2 quizzes
-    // mirror that — title and questionCount are bumped after each peer
-    // publishes a content edit, so any current member must be able to
-    // patch them. If this assertion ever flips, the LWW mirror would
-    // start failing for non-sharer peers.
-    await assertSucceeds(
-      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        title: 'Renamed',
-        questionCount: 9,
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('any member can mirror pickup run-settings after a publish', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        sessionMode: 'auto',
-        sessionOptions: { showResultToStudent: true },
-        attemptLimit: 3,
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects a non-int attemptLimit on update', async () => {
+  it('a member can no longer change the title, count, run-settings or archive it', async () => {
+    const ref = doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`);
     await assertFails(
-      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        attemptLimit: 'unlimited',
-        updatedAt: 2000,
-      })
+      updateDoc(ref, { title: 'Renamed', questionCount: 9, updatedAt: 2000 })
     );
+    await assertFails(
+      updateDoc(ref, { sessionMode: 'student', updatedAt: 2000 })
+    );
+    await assertFails(updateDoc(ref, { archived: true, updatedAt: 2000 }));
   });
 
-  it('rejects an attempt to change syncGroupId (immutability)', async () => {
-    // The syncGroupId pins this PLC entry to a specific canonical
-    // synced_quizzes doc. Letting a member retarget the linkage would
-    // silently swap one quiz for another behind teammates' backs.
-    await assertFails(
-      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        syncGroupId: 'different-group',
-      })
-    );
-  });
-
-  it('rejects an attempt to change sharedBy (attribution immutability)', async () => {
-    // The PLC tab renders "shared by {sharedByName}" — rewriting this
-    // would let a teammate steal authorship of someone else's share.
-    await assertFails(
-      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        sharedBy: MEMBER_B_UID,
-      })
-    );
-  });
-
-  it('rejects an attempt to mutate id (immutability)', async () => {
-    await assertFails(
-      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        id: 'different-id',
-      })
-    );
-  });
-
-  it('rejects an attempt to mutate sharedAt (immutability)', async () => {
-    await assertFails(
-      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        sharedAt: 9999999,
-      })
-    );
-  });
-
-  it('rejects an update that introduces an extra field (schema lock-down)', async () => {
-    await assertFails(
-      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        unexpected: 'extra-field',
-      })
-    );
+  it('a member cannot rewrite the doc or change attribution', async () => {
+    const ref = doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`);
+    await assertFails(setDoc(ref, validEntry({ title: 'Hijacked' })));
+    await assertFails(updateDoc(ref, { sharedBy: MEMBER_B_UID }));
   });
 
   it('a non-member cannot update an entry', async () => {
     await assertFails(
       updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
         title: 'Hijacked',
+      })
+    );
+  });
+
+  it('rejects a title change bundled with a folder move or order', async () => {
+    const ref = doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`);
+    await assertFails(updateDoc(ref, { folderId: 'f1', title: 'Renamed' }));
+    await assertFails(updateDoc(ref, { order: 2, title: 'Renamed' }));
+  });
+
+  it('rejects a folder move from a non-member', async () => {
+    await assertFails(
+      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        folderId: 'f1',
+        updatedAt: 2000,
+      })
+    );
+  });
+
+  it('allows clearing folderId to null', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
+        folderId: null,
       })
     );
   });
@@ -371,31 +258,13 @@ describe('plcs/{plcId}/quizzes — update', () => {
       })
     );
   });
-
-  it('an editor can set archived: true via update', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        archived: true,
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects a non-bool archived', async () => {
-    await assertFails(
-      updateDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`), {
-        archived: 'yes',
-        updatedAt: 2000,
-      })
-    );
-  });
 });
 
 // ---------------------------------------------------------------------------
-// delete — orphan-tolerant, any-member
+// delete: refused for clients (plcContentWriteV1 writes it)
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/quizzes — delete', () => {
+describe('plcs/{plcId}/quizzes — delete refused', () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
@@ -405,24 +274,10 @@ describe('plcs/{plcId}/quizzes — delete', () => {
     });
   });
 
-  it('the original sharer can unshare', async () => {
-    await assertSucceeds(
-      deleteDoc(doc(asMemberA(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`))
-    );
-  });
-
-  it('any teammate (not just the sharer) can unshare (PLC-owned model)', async () => {
-    // Phase 2 spec: quizzes shared with the PLC belong to the PLC, not
-    // the original sharer. If this flips to assertFails, the unshare
-    // affordance must hide for non-sharer rows on the Assessments list.
-    await assertSucceeds(
-      deleteDoc(doc(asMemberB(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`))
-    );
-  });
-
-  it('a non-member cannot delete', async () => {
-    await assertFails(
-      deleteDoc(doc(asNonMember(), `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`))
-    );
+  it('neither the sharer nor a teammate nor a non-member can delete', async () => {
+    const path = `plcs/${PLC_ID}/quizzes/${PLC_QUIZ_ID}`;
+    await assertFails(deleteDoc(doc(asMemberA(), path)));
+    await assertFails(deleteDoc(doc(asMemberB(), path)));
+    await assertFails(deleteDoc(doc(asNonMember(), path)));
   });
 });

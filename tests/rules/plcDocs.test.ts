@@ -1,9 +1,9 @@
 // Firestore security rules regression coverage for `plcs/{plcId}/docs`.
 // Pins the invariants introduced in the PLC redesign Wave 1:
-//   - Only current PLC members can read/create/update/delete docs.
-//   - On create: `id` must equal the docId path segment, `createdBy` must
-//     equal the caller's uid, schema is locked via `keys().hasOnly([...])`.
-//   - On update: `id`, `createdBy`, and `createdAt` are immutable.
+//   - Only current PLC members can read docs; creating, editing and deleting
+//     run in plcContentWriteV1, so clients are refused.
+//   - The one direct write left is a member updating only `actionItems`
+//     (a list of at most 200) and `updatedAt`.
 //   - Non-members cannot read or write.
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
@@ -124,177 +124,65 @@ describe('plcs/{plcId}/docs — read', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Create
+// Create, edit and delete: refused for clients (plcContentWriteV1 writes them)
 // ---------------------------------------------------------------------------
 
-describe('plcs/{plcId}/docs — create', () => {
-  it('member can create a doc with the locked schema', async () => {
-    await assertSucceeds(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), validDoc())
-    );
+describe('plcs/{plcId}/docs — client writes refused', () => {
+  const docRef = (db: ReturnType<typeof asMember>) =>
+    doc(db, `plcs/${PLC_ID}/docs/${DOC_ID}`);
+
+  it('a member can no longer create a doc', async () => {
+    await assertFails(setDoc(docRef(asMember()), validDoc()));
   });
 
-  // Decision 1.3: writes carry serverTimestamp() for the time fields; rules
-  // dual-accept `int || timestamp` during rollout.
-  it('accepts serverTimestamp() for createdAt / updatedAt (dual-accept)', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
-        validDoc({
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+  it('a non-member cannot create a doc either', async () => {
+    await assertFails(setDoc(docRef(asNonMember()), validDoc()));
+  });
+
+  describe('with an existing doc', () => {
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(
+          doc(ctx.firestore(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
+          validDoc()
+        );
+      });
+    });
+
+    it('a member can no longer change the title or url', async () => {
+      await assertFails(
+        updateDoc(docRef(asMember()), { title: 'Renamed', updatedAt: 2000 })
+      );
+      await assertFails(
+        updateDoc(docRef(asMember()), { url: 'https://example.com/x' })
+      );
+    });
+
+    it('a member cannot slip a title change in next to action items', async () => {
+      await assertFails(
+        updateDoc(docRef(asMember()), {
+          title: 'Renamed',
+          actionItems: [],
+          updatedAt: 2000,
         })
-      )
-    );
-  });
-
-  it('rejects a non-int / non-timestamp createdAt', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
-        validDoc({ createdAt: 'whenever' })
-      )
-    );
-  });
-
-  it('non-member cannot create a doc', async () => {
-    await assertFails(
-      setDoc(
-        doc(asNonMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
-        validDoc({ createdBy: NON_MEMBER_UID })
-      )
-    );
-  });
-
-  it('rejects create when id field does not match docId path segment', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
-        validDoc({ id: 'different-id' })
-      )
-    );
-  });
-
-  it('rejects create when createdBy does not match caller uid', async () => {
-    await assertFails(
-      setDoc(
-        doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
-        validDoc({ createdBy: NON_MEMBER_UID })
-      )
-    );
-  });
-
-  it('rejects create with an extra unknown field (schema lock-down)', async () => {
-    await assertFails(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
-        ...validDoc(),
-        unexpected: 'extra-field',
-      })
-    );
-  });
-
-  it('rejects create missing required field title', async () => {
-    const { title: _title, ...withoutTitle } = validDoc();
-    await assertFails(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), withoutTitle)
-    );
-  });
-
-  it('rejects create missing required field url', async () => {
-    const { url: _url, ...withoutUrl } = validDoc();
-    await assertFails(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), withoutUrl)
-    );
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Update
-// ---------------------------------------------------------------------------
-
-describe('plcs/{plcId}/docs — update', () => {
-  beforeEach(async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(ctx.firestore(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
-        validDoc()
       );
     });
-  });
 
-  it('member can update title and url', async () => {
-    await assertSucceeds(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
-        ...validDoc(),
-        title: 'Updated Title',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('accepts a serverTimestamp() updatedAt patch (dual-accept)', async () => {
-    await assertSucceeds(
-      updateDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
-        title: 'Updated Title',
-        updatedAt: serverTimestamp(),
-      })
-    );
-  });
-
-  it('non-member cannot update a doc', async () => {
-    await assertFails(
-      updateDoc(doc(asNonMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
-        title: 'Hacked',
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects update that mutates createdBy (immutability)', async () => {
-    await assertFails(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
-        ...validDoc(),
-        createdBy: NON_MEMBER_UID,
-        updatedAt: 2000,
-      })
-    );
-  });
-
-  it('rejects update that mutates createdAt (immutability)', async () => {
-    await assertFails(
-      setDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
-        ...validDoc(),
-        createdAt: 9999,
-        updatedAt: 2000,
-      })
-    );
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Delete
-// ---------------------------------------------------------------------------
-
-describe('plcs/{plcId}/docs — delete', () => {
-  beforeEach(async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(
-        doc(ctx.firestore(), `plcs/${PLC_ID}/docs/${DOC_ID}`),
-        validDoc()
-      );
+    it('a member cannot rewrite identity fields', async () => {
+      await assertFails(updateDoc(docRef(asMember()), { createdBy: 'x' }));
+      await assertFails(updateDoc(docRef(asMember()), { createdAt: 5 }));
     });
-  });
 
-  it('member can delete a doc', async () => {
-    await assertSucceeds(
-      deleteDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`))
-    );
-  });
+    it('a member can no longer delete a doc', async () => {
+      await assertFails(deleteDoc(docRef(asMember())));
+    });
 
-  it('non-member cannot delete a doc', async () => {
-    await assertFails(
-      deleteDoc(doc(asNonMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`))
-    );
+    it('a non-member cannot update or delete a doc', async () => {
+      await assertFails(
+        updateDoc(docRef(asNonMember()), { title: 'x', updatedAt: 2000 })
+      );
+      await assertFails(deleteDoc(docRef(asNonMember())));
+    });
   });
 });
 
@@ -327,8 +215,8 @@ describe('plcs/{plcId}/docs — actionItems', () => {
     );
   });
 
-  it('a member can create a doc with action items', async () => {
-    await assertSucceeds(
+  it('a member can no longer create a doc with action items', async () => {
+    await assertFails(
       setDoc(doc(asMember(), `plcs/${PLC_ID}/docs/d2`), {
         ...validDoc({ id: 'd2' }),
         actionItems: [item(1), item(2)],
@@ -341,6 +229,15 @@ describe('plcs/{plcId}/docs — actionItems', () => {
       updateDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
         actionItems: [item(1), item(2)],
         updatedAt: 2000,
+      })
+    );
+  });
+
+  it('accepts a serverTimestamp() updatedAt next to the action items', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}/docs/${DOC_ID}`), {
+        actionItems: [item(1)],
+        updatedAt: serverTimestamp(),
       })
     );
   });

@@ -1,4 +1,4 @@
-// Security batch 1C: who may start a PLC, and an invite accept that must match its own invite.
+// Security batch 1C: PLC creation is server-only, and an invite accept must match its own invite.
 // Requires a running Firestore emulator: `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';
@@ -6,7 +6,6 @@ import { fileURLToPath } from 'url';
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
 import {
   initializeTestEnvironment,
-  assertSucceeds,
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
@@ -87,82 +86,54 @@ const newPlc = (uid: string, email: string) => ({
 });
 
 describe('plcs create: district staff only', () => {
-  it('a verified staff teacher creates a PLC and reads it back', async () => {
+  it('a verified staff teacher can no longer create a PLC directly (plcSettingsV1 does)', async () => {
     const db = testEnv
       .authenticatedContext(TEACHER_UID, {
         email: TEACHER_EMAIL,
         email_verified: true,
       })
       .firestore();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, 'plcs/new-plc'), newPlc(TEACHER_UID, TEACHER_EMAIL))
     );
-    await assertSucceeds(getDoc(doc(db, 'plcs/new-plc')));
   });
 
-  it('an anonymous account cannot create a PLC', async () => {
-    const db = testEnv
-      .authenticatedContext('anon-uid', {
-        firebase: { sign_in_provider: 'anonymous' },
-      })
-      .firestore();
-    await assertFails(setDoc(doc(db, 'plcs/new-plc'), newPlc('anon-uid', '')));
-  });
-
-  it('a student-role token cannot create a PLC, even with a staff address', async () => {
-    const db = testEnv
-      .authenticatedContext('student-role-uid', {
-        email: TEACHER_EMAIL,
-        email_verified: true,
-        studentRole: true,
-        classIds: ['c1'],
-      })
-      .firestore();
-    await assertFails(
-      setDoc(doc(db, 'plcs/new-plc'), newPlc('student-role-uid', TEACHER_EMAIL))
-    );
-  });
-
-  it('a student Google account on the district domain cannot create a PLC', async () => {
-    const db = testEnv
-      .authenticatedContext(STUDENT_GOOGLE_UID, {
-        email: STUDENT_GOOGLE_EMAIL,
-        email_verified: true,
-      })
-      .firestore();
-    await assertFails(
-      setDoc(
-        doc(db, 'plcs/new-plc'),
-        newPlc(STUDENT_GOOGLE_UID, STUDENT_GOOGLE_EMAIL)
-      )
-    );
-  });
-
-  it('an unverified email or an inactive member cannot create a PLC', async () => {
-    const unverified = testEnv
-      .authenticatedContext(TEACHER_UID, {
-        email: TEACHER_EMAIL,
-        email_verified: false,
-      })
-      .firestore();
-    await assertFails(
-      setDoc(
-        doc(unverified, 'plcs/new-plc'),
-        newPlc(TEACHER_UID, TEACHER_EMAIL)
-      )
-    );
-    const inactive = testEnv
-      .authenticatedContext(INACTIVE_UID, {
-        email: INACTIVE_EMAIL,
-        email_verified: true,
-      })
-      .firestore();
-    await assertFails(
-      setDoc(
-        doc(inactive, 'plcs/new-plc'),
-        newPlc(INACTIVE_UID, INACTIVE_EMAIL)
-      )
-    );
+  it('no other account can create a PLC either (anonymous, student role, student Google, unverified, inactive)', async () => {
+    const as = (uid: string, token: Record<string, unknown>) =>
+      testEnv.authenticatedContext(uid, token).firestore();
+    const cases: [string, string, Record<string, unknown>][] = [
+      ['anon-uid', '', { firebase: { sign_in_provider: 'anonymous' } }],
+      [
+        'student-role-uid',
+        TEACHER_EMAIL,
+        {
+          email: TEACHER_EMAIL,
+          email_verified: true,
+          studentRole: true,
+          classIds: ['c1'],
+        },
+      ],
+      [
+        STUDENT_GOOGLE_UID,
+        STUDENT_GOOGLE_EMAIL,
+        { email: STUDENT_GOOGLE_EMAIL, email_verified: true },
+      ],
+      [
+        TEACHER_UID,
+        TEACHER_EMAIL,
+        { email: TEACHER_EMAIL, email_verified: false },
+      ],
+      [
+        INACTIVE_UID,
+        INACTIVE_EMAIL,
+        { email: INACTIVE_EMAIL, email_verified: true },
+      ],
+    ];
+    for (const [uid, email, token] of cases) {
+      await assertFails(
+        setDoc(doc(as(uid, token), 'plcs/new-plc'), newPlc(uid, email))
+      );
+    }
   });
 });
 
