@@ -46,6 +46,14 @@ export interface GcOptions {
   ignorePersonal?: IgnoredPersonalSet;
   /** A building set whose own listing does not count. */
   ignoreBuildingSetId?: string;
+  /** Scan every user's Claude revisions (building sets and admin releases). */
+  allRevisions?: boolean;
+}
+
+function revisionOwners(paths: string[], editorUid?: string): string[] {
+  const owners = paths.map(glMediaOwner).filter((u): u is string => !!u);
+  if (editorUid) owners.push(editorUid);
+  return [...new Set(owners)];
 }
 
 // Returns the paths that were deleted.
@@ -60,12 +68,15 @@ export async function gcOrphanedSlidePaths(
   try {
     shared = await loadSharedReferences(db, {
       ignoreBuildingSetId: opts.ignoreBuildingSetId,
-      // Only the releasing set's own restorable revisions; building sets are rare, so scan all.
-      revisions: opts.ignorePersonal
-        ? opts.ignorePersonal
-        : opts.ignoreBuildingSetId
-          ? 'all'
-          : undefined,
+      // Revisions sit under the editor's uid; admin and building files can belong to anyone, so scan all.
+      revisions: opts.allRevisions
+        ? 'all'
+        : {
+            ownerUids: revisionOwners(
+              paths,
+              opts.ignorePersonal ? opts.ignorePersonal.uid : undefined
+            ),
+          },
     });
   } catch (err) {
     // Without a full reference picture nothing is provably unused.
@@ -131,7 +142,7 @@ export const gcBuildingGuidedLearningMedia = onDocumentDeleted(
     const paths = readImagePaths(event.data?.data()).filter((p) =>
       isGlMediaPath(p)
     );
-    const deleted = await gcOrphanedSlidePaths(paths);
+    const deleted = await gcOrphanedSlidePaths(paths, { allRevisions: true });
     if (deleted.length > 0) {
       logger.info('[gcGuidedLearningMedia] deleted orphaned building slides', {
         setId: event.params.setId,
@@ -188,8 +199,8 @@ export const releaseGuidedLearningMediaV1 = onCall(
     const deleted = await gcOrphanedSlidePaths(
       paths,
       building
-        ? { ignoreBuildingSetId: setId }
-        : { ignorePersonal: { uid, setId } }
+        ? { ignoreBuildingSetId: setId, allRevisions: true }
+        : { ignorePersonal: { uid, setId }, allRevisions: isAdmin }
     );
     if (deleted.length > 0) {
       logger.info('[gcGuidedLearningMedia] released editor media', {

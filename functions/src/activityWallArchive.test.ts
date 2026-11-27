@@ -4,7 +4,7 @@
 // Storage, Drive and the OAuth refresh are stubs here; only the decision logic
 // the brief specifies is under test.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('./firebaseAdmin', () => ({
   apps: [{ name: '[DEFAULT]' }],
@@ -62,6 +62,7 @@ import {
   buildDriveUrl,
   resolveDrivePermission,
   buildWallFolderPath,
+  deleteDriveFile,
   effectiveArchiveStatus,
   hasActivityWallStoragePrefix,
   isAllowedMimeForType,
@@ -1212,5 +1213,38 @@ describe('listBucketObjects', () => {
     expect(bucket.getFiles).toHaveBeenCalledTimes(MAX_STORAGE_PAGES);
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('deleteDriveFile', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const stubFetch = (status: number) => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({ ok: status >= 200 && status < 300, status })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  };
+
+  it('sends a DELETE with the bearer token and resolves on 204', async () => {
+    const fetchMock = stubFetch(204);
+    await expect(deleteDriveFile('tok', 'a/b')).resolves.toBeUndefined();
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      { method: string; headers: Record<string, string> },
+    ];
+    expect(url).toContain('/files/a%2Fb');
+    expect(init.method).toBe('DELETE');
+    expect(init.headers.Authorization).toBe('Bearer tok');
+  });
+
+  it('treats 404 as already deleted', async () => {
+    stubFetch(404);
+    await expect(deleteDriveFile('tok', 'f')).resolves.toBeUndefined();
+  });
+
+  it('throws on 500', async () => {
+    stubFetch(500);
+    await expect(deleteDriveFile('tok', 'f')).rejects.toThrow(/\(500\)/);
   });
 });

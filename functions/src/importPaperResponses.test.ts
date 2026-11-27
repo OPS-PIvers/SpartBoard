@@ -1191,6 +1191,37 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     );
   });
 
+  it('lands a retake rescan once the first attempt edit is cleared', async () => {
+    const { docs } = await callV2(v2Docs(), [v2Sheet(1)]);
+    const priv = { ...docs[`${RESP}/paperPrivate/q4`] };
+    delete priv.editedAt;
+    delete priv.editedBy;
+    docs[`${RESP}/paperPrivate/q4`] = priv;
+    const { db } = makeDb(docs);
+    const result = await handleImportPaperResponses(
+      db,
+      teacher,
+      {
+        batchId: BATCH,
+        assignmentId: ASSIGNMENT,
+        layoutVersion: 2,
+        scanId: 'scan-2',
+        sheets: [
+          v2Sheet(1, {
+            written: [{ questionId: 'q4', page: 2, state: 'ink' }],
+          }),
+        ],
+      },
+      NOW + 1
+    );
+    expect(result.keptWritten ?? []).toEqual([]);
+    const q4 = (docs[RESP].answers as Doc[]).find((a) => a.questionId === 'q4');
+    expect(q4).toMatchObject({
+      paperScanId: 'scan-2',
+      paperTranscript: 'pending',
+    });
+  });
+
   it('replaces an ungraded, unedited written answer with the new scan', async () => {
     const { docs } = await callV2(v2Docs(), [v2Sheet(1)]);
     const { db } = makeDb(docs);
