@@ -3261,7 +3261,7 @@ const TeacherQuizWidget: React.FC<{
           // `updateAssignmentSettings`.
           // Sync both docs to the Tab warnings value the modal showed (the live session's).
           const shownTab =
-            withLiveTabWarnings(target).sessionOptions.tabWarningsEnabled;
+            withLiveTabWarnings(target).sessionOptions?.tabWarningsEnabled;
           const {
             rosterIds,
             periodName: _periodName,
@@ -3269,7 +3269,7 @@ const TeacherQuizWidget: React.FC<{
             periodAccessRows,
             ...settingsPatch
           } = shownTab !== undefined &&
-          shownTab !== target.sessionOptions.tabWarningsEnabled &&
+          shownTab !== target.sessionOptions?.tabWarningsEnabled &&
           !('tabWarningsEnabled' in (patch.sessionOptionEdits ?? {}))
             ? {
                 ...patch,
