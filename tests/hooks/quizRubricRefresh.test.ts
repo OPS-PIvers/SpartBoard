@@ -398,8 +398,11 @@ describe('refreshRubricForSession', () => {
     expect(response('a1').grading.w1.pointsAwarded).toBe(7);
     // Already rescored on the first pass, so the retry leaves it alone.
     expect(
-      (store.get('quiz_sessions/a1/responses/s2') as ReturnType<typeof response>)
-        .grading.w1.pointsAwarded
+      (
+        store.get('quiz_sessions/a1/responses/s2') as ReturnType<
+          typeof response
+        >
+      ).grading.w1.pointsAwarded
     ).toBe(7);
     expect(points('a1')).toBe(7);
   });

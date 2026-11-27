@@ -277,7 +277,8 @@ async function rescoreSessionResponses(opts: {
         })
       )
     );
-    for (const r of results) if (r.status === 'rejected') failures.push(r.reason);
+    for (const r of results)
+      if (r.status === 'rejected') failures.push(r.reason);
   }
   // One bad response never stops the rest; the first failure is still reported.
   if (failures.length) throw failures[0];
