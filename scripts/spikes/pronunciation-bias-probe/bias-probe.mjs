@@ -185,7 +185,11 @@ const CONDITIONS = [
   { id: 'E', label: 'ANGLO-r aud, told "perro"', wav: ANGLO, target: 'perro' },
 ];
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// SDK 3 defaults the Gemini Developer API to v1; this spike was written against v1beta.
+const ai = new GoogleGenAI({
+  apiKey: API_KEY,
+  httpOptions: { apiVersion: 'v1beta' },
+});
 
 async function transcribe({ wav, target }) {
   const result = await ai.models.generateContent({
