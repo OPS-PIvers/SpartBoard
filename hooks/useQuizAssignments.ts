@@ -1366,7 +1366,7 @@ export const useQuizAssignments = (
         ...Object.fromEntries(
           Object.entries(sessionOptionEdits ?? {}).map(([key, value]) => [
             `sessionOptions.${key}`,
-            value ?? null,
+            value === undefined ? deleteField() : value,
           ])
         ),
         updatedAt: now,
@@ -1409,10 +1409,20 @@ export const useQuizAssignments = (
         const editedRow = assignmentsRef.current.find(
           (a) => a.id === assignmentId
         );
+        // Tab warnings always re-sync: the monitor switch once wrote only the session, so the two can differ.
+        const tabWarnings =
+          'tabWarningsEnabled' in sessionOptionEdits
+            ? sessionOptionEdits.tabWarningsEnabled
+            : editedRow?.sessionOptions?.tabWarningsEnabled;
         Object.assign(
           sessionPatch,
           sessionOptionsToSessionPatch(
-            sessionOptionEdits as QuizSessionOptions,
+            {
+              ...(sessionOptionEdits as QuizSessionOptions),
+              ...(typeof tabWarnings === 'boolean'
+                ? { tabWarningsEnabled: tabWarnings }
+                : {}),
+            },
             {
               timeLimitOn,
               scoreOnSubmitOn,
@@ -1421,32 +1431,6 @@ export const useQuizAssignments = (
               reviewGame: editedRow ? isReviewGame(editedRow) : true,
             }
           )
-        );
-      }
-      if (patch.sessionOptions) {
-        // Mirror only edited keys so flag-gated create-time fields (tab-away) aren't switched on.
-        const editedRow = assignmentsRef.current.find(
-          (a) => a.id === assignmentId
-        );
-        const prevOptions: Record<string, unknown> = {
-          ...editedRow?.sessionOptions,
-        };
-        // Tab warnings always mirror: the monitor once wrote it to the session alone, so the two can differ.
-        const changed = Object.fromEntries(
-          Object.entries(patch.sessionOptions).filter(
-            ([key, value]) =>
-              prevOptions[key] !== value || key === 'tabWarningsEnabled'
-          )
-        ) as QuizSessionOptions;
-        Object.assign(
-          sessionPatch,
-          sessionOptionsToSessionPatch(changed, {
-            timeLimitOn,
-            scoreOnSubmitOn,
-            stimulusQuotesOn,
-            pageProtectionsOn,
-            reviewGame: editedRow ? isReviewGame(editedRow) : true,
-          })
         );
       }
       // Clearing `plc` must also drop the session's plcId/syncGroupId/plcLinkedAt (mirrors stopSharingAssignmentWithPlc) — markPlcAssessmentDirty reads those, not assignment.plc, to keep pooling responses.
