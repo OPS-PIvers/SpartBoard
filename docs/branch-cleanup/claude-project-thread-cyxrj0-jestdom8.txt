@@ -1,0 +1,1 @@
+claude/project-thread-cyxrj0-jestdom8 (Upgrade @testing-library/jest-dom 8 for tests)
