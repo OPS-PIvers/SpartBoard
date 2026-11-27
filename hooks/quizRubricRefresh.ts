@@ -279,6 +279,27 @@ async function rescoreSessionResponses(opts: {
   }
 }
 
+/** Whether a session still serves other points for this rubric, and the rubric its grades were made against. */
+async function servedRubricState(
+  sessionId: string,
+  rubric: Rubric,
+  fallbackBefore: Rubric
+): Promise<{ stale: boolean; before: Rubric }> {
+  const served = await readServedRubric(sessionId, rubric);
+  // What students were graded against wins over the loaded quiz, which may already hold the edit.
+  if (!served?.rubricSnapshot)
+    return {
+      stale: rubricPointsChanged(fallbackBefore, rubric),
+      before: fallbackBefore,
+    };
+  return {
+    stale:
+      served.points !== rubricMaxPoints(rubric) ||
+      rubricPointsChanged(served.rubricSnapshot, rubric),
+    before: served.rubricSnapshot,
+  };
+}
+
 /** Refreshes one assignment for a rubric edit; the rescore runs even when the refresh fails. */
 export async function refreshRubricForSession(opts: {
   sessionId: string;
@@ -287,13 +308,11 @@ export async function refreshRubricForSession(opts: {
   /** The quiz this assignment grades against, with the edit applied. */
   quiz: QuizData;
 }): Promise<void> {
-  const served = await readServedRubric(opts.sessionId, opts.rubric);
-  // What students were graded against wins over the loaded quiz, which may already hold the edit.
-  const before = served?.rubricSnapshot ?? opts.before;
-  const stale = served
-    ? served.points !== rubricMaxPoints(opts.rubric) ||
-      servedPointsDiffer(served.rubricSnapshot, opts.rubric)
-    : rubricPointsChanged(opts.before, opts.rubric);
+  const { stale, before } = await servedRubricState(
+    opts.sessionId,
+    opts.rubric,
+    opts.before
+  );
   if (!stale) return;
   const results = await Promise.allSettled([
     refreshAssignmentRubric(opts),
@@ -343,7 +362,6 @@ export async function refreshRubricPeers(
     loadGradingQuiz: (assignment: QuizAssignment) => Promise<QuizData | null>;
   }
 ): Promise<boolean> {
-  if (!rubricPointsChanged(opts.before, opts.rubric)) return true;
   let ok = true;
   for (const a of assignments) {
     if (
@@ -353,6 +371,9 @@ export async function refreshRubricPeers(
     )
       continue;
     try {
+      // Decided per peer from what it serves, so a retry repairs one that failed before.
+      const { stale } = await servedRubricState(a.id, opts.rubric, opts.before);
+      if (!stale) continue;
       const frozenId = assignmentFrozenFileId(a);
       if (frozenId && frozenId !== opts.libraryDriveFileId) {
         const held = await writeRubricToFrozenCopy(

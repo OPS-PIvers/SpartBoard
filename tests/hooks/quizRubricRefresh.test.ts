@@ -764,6 +764,29 @@ describe('refreshRubricPeers', () => {
     ).toBeUndefined();
   });
 
+  it('repairs a peer that failed once when the edit is saved again', async () => {
+    seedSession('p2');
+    failRefreshFor.add('p2');
+    expect(await run([assignment('p2')])).toBe(false);
+    expect(points('p2')).toBe(4);
+    failRefreshFor.clear();
+    // The library already holds the edit, so the second save's before is the new rubric.
+    expect(
+      await refreshRubricPeers([assignment('p2')], {
+        quizId: 'quiz1',
+        libraryDriveFileId: 'library',
+        teacherUid: 't1',
+        rubric: rubric(5),
+        before: rubric(5),
+        frozenCopies,
+        loadGradingQuiz: () => Promise.resolve(edited(5)),
+      })
+    ).toBe(true);
+    expect(points('p2')).toBe(7);
+    expect(response('p2').grading.w1.pointsAwarded).toBe(7);
+    expect(response('p2').scorePoints.possible).toBe(8);
+  });
+
   it('reports a failed peer without stopping the others', async () => {
     seedSession('p2');
     seedSession('p3');
