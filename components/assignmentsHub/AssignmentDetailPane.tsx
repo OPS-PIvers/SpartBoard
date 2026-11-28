@@ -5,7 +5,13 @@
 // only (useAssignmentPseudonyms.ts contract) — mini-app doesn't need a name
 // map keyed by uid since its submissions ARE keyed by the resolved pseudonym.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { languageDisplayLabel } from '@/utils/languageDisplayLabel';
 import { newlyRequestedLocales } from '@/utils/quizTranslationAdvisory';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
@@ -182,7 +188,12 @@ export const AssignmentDetailPane: React.FC<{
   const [prevRowId, setPrevRowId] = useState(row.id);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<AssignTargetingValue>(() => toDraft(row));
-  const [saving, setSaving] = useState(false);
+  const [savingRowId, setSavingRowId] = useState<string | null>(null);
+  const saving = savingRowId === row.id;
+  const currentRowIdRef = useRef(row.id);
+  useLayoutEffect(() => {
+    currentRowIdRef.current = row.id;
+  }, [row.id]);
   const [saveError, setSaveError] = useState<string | null>(null);
   if (prevRowId !== row.id) {
     setPrevRowId(row.id);
@@ -193,7 +204,9 @@ export const AssignmentDetailPane: React.FC<{
 
   const handleSave = async () => {
     if (!user?.uid) return;
-    setSaving(true);
+    const rowId = row.id;
+    const isCurrent = () => currentRowIdRef.current === rowId;
+    setSavingRowId(rowId);
     setSaveError(null);
     try {
       const next = applyWindowEdit(
@@ -203,6 +216,7 @@ export const AssignmentDetailPane: React.FC<{
         rowWorkKind(row)
       );
       const result = await saveEdit(row, user.uid, next, classContext);
+      if (!isCurrent()) return;
       if (result.skipped.length > 0) {
         const base = t('assignmentsHub.detail.editSkipped', {
           defaultValue:
@@ -220,19 +234,21 @@ export const AssignmentDetailPane: React.FC<{
         setEditing(false);
       }
     } catch {
+      if (!isCurrent()) return;
       setSaveError(
         t('assignmentsHub.detail.editSaveFailed', {
           defaultValue: 'Could not save changes. Try again.',
         })
       );
     } finally {
-      setSaving(false);
+      setSavingRowId((id) => (id === rowId ? null : id));
     }
   };
 
   const handleCloseNow = async () => {
     if (!user?.uid) return;
-    setSaving(true);
+    const rowId = row.id;
+    setSavingRowId(rowId);
     try {
       await closeNow(row, user.uid, classContext);
     } catch {
@@ -243,7 +259,7 @@ export const AssignmentDetailPane: React.FC<{
         'error'
       );
     } finally {
-      setSaving(false);
+      setSavingRowId((id) => (id === rowId ? null : id));
     }
   };
 
