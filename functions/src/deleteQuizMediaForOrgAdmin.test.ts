@@ -1669,6 +1669,25 @@ describe('kept scan pages', () => {
     });
   });
 
+  it('does not list a forged paperPages row the scan record never named', async () => {
+    const response = db.docs.get('quiz_sessions/s1/responses/r1') as Doc;
+    (response.paperPages as Doc[]).push({
+      id: 'pg_scan-9_1',
+      slot: 'primary',
+      kind: 'paper-page',
+      storagePath: 'paper_pages/teacher-uid/scan-9/4/1.webp',
+      uploadState: 'uploaded',
+    });
+    const { rows } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    expect(rows[0].takes.map((t) => t.artifactId)).toEqual([
+      'pg_scan-2_1',
+      'pg_scan-1_2',
+    ]);
+  });
+
   it('deletes the live page from Storage and the older copy from Drive', async () => {
     const deps = makeDeps(db);
     const { results } = await deleteOrgQuizMediaSets(

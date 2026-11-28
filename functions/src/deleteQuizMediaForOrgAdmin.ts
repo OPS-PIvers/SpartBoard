@@ -37,10 +37,13 @@ import {
   deleteQuizArchiveDriveFile,
   isArtifactStoragePathOwned,
   isArtifactStoragePathValid,
+  hasPaperPageStoragePrefix,
+  paperPageInScanSeats,
   parsePaperPageArtifactId,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
+import { PAPER_PAGE_SCANS } from './paperWrittenTypes';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isRevokedMemberStatus, isSiteSuperAdmin } from './authz';
 import './functionsInit';
@@ -263,7 +266,8 @@ export function collectQuestionArtifacts(
 
 /** Kept scan pages: the live ones in `paperPages`, plus any older scan's page whose Drive copy only `artifactArchive` still names. */
 export function collectKeptPageArtifacts(
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  provenPageIds?: ReadonlySet<string>
 ): QuestionArtifact[] {
   const out: QuestionArtifact[] = [];
   const add = (id: string, storagePath: string) => {
@@ -281,8 +285,12 @@ export function collectKeptPageArtifacts(
     ? (data.paperPages as StoredArtifact[])
     : [];
   for (const page of pages) {
-    if (page?.kind === 'paper-page')
-      add(asString(page.id), asString(page.storagePath));
+    const id = asString(page?.id);
+    if (
+      page?.kind === 'paper-page' &&
+      (!provenPageIds || provenPageIds.has(id))
+    )
+      add(id, asString(page.storagePath));
   }
   for (const id of Object.keys(readArchiveMap(data))) add(id, '');
   return out;
@@ -427,6 +435,43 @@ export function chunkList<T>(items: readonly T[], size: number): T[][] {
   return out;
 }
 
+/** Kept pages of one response that a server-written scan record names; a forged `paperPages` row is dropped. */
+export async function provenKeptPageIds(
+  db: Firestore,
+  input: { teacherUid: string; sessionId: string; responseKey: string },
+  data: Record<string, unknown>,
+  seatsCache: Map<string, Promise<unknown>>
+): Promise<Set<string>> {
+  const proven = new Set<string>();
+  if (!Array.isArray(data.paperPages) || !input.teacherUid) return proven;
+  for (const raw of data.paperPages as StoredArtifact[]) {
+    const id = asString(raw?.id);
+    const storagePath = asString(raw?.storagePath);
+    const parsed = parsePaperPageArtifactId(id);
+    if (
+      raw?.kind !== 'paper-page' ||
+      !parsed ||
+      !hasPaperPageStoragePrefix(storagePath, input.teacherUid)
+    )
+      continue;
+    const key = `${input.teacherUid}/${parsed.scanId}`;
+    let seats = seatsCache.get(key);
+    if (!seats) {
+      seats = db
+        .collection('users')
+        .doc(input.teacherUid)
+        .collection(PAPER_PAGE_SCANS)
+        .doc(parsed.scanId)
+        .get()
+        .then((snap): unknown => snap.data()?.seats);
+      seatsCache.set(key, seats);
+    }
+    if (paperPageInScanSeats(await seats, { ...input, storagePath }, parsed))
+      proven.add(id);
+  }
+  return proven;
+}
+
 /** Builds one row per (response, question) from a response document. */
 export function buildRowsForResponse(
   input: {
@@ -437,6 +482,8 @@ export function buildRowsForResponse(
     teacherEmail: string;
     /** questionId -> truncated prompt; `{}` when the session lists none. */
     questionTextById?: Record<string, string>;
+    /** Kept page ids the scan record proves; omit to trust `paperPages`. */
+    provenPageIds?: ReadonlySet<string>;
   },
   data: Record<string, unknown>
 ): MediaResponseRow[] {
@@ -455,7 +502,10 @@ export function buildRowsForResponse(
 
   const rows: MediaResponseRow[] = [];
   for (const questionId of [...questionIds, KEPT_PAGES_QUESTION_ID]) {
-    const artifacts = collectTargetArtifacts(data, questionId);
+    const artifacts =
+      questionId === KEPT_PAGES_QUESTION_ID
+        ? collectKeptPageArtifacts(data, input.provenPageIds)
+        : collectTargetArtifacts(data, questionId);
     const grouped = new Map<
       string,
       {
@@ -604,6 +654,7 @@ export async function listOrgQuizMedia(
   let sessionsScanned = 0;
   let responsesScanned = 0;
   let truncated = false;
+  const scanSeats = new Map<string, Promise<unknown>>();
 
   // Labelled so a response-cap hit stops every remaining teacher chunk too.
   scan: for (const chunk of chunkList(uids, TEACHER_CHUNK)) {
@@ -636,6 +687,12 @@ export async function listOrgQuizMedia(
       for (const responseDoc of responses.docs) {
         responsesScanned++;
         const data = responseDoc.data() ?? {};
+        const provenPageIds = await provenKeptPageIds(
+          db,
+          { teacherUid, sessionId: sessionDoc.id, responseKey: responseDoc.id },
+          data,
+          scanSeats
+        );
         rows.push(
           ...buildRowsForResponse(
             {
@@ -645,6 +702,7 @@ export async function listOrgQuizMedia(
               teacherUid,
               teacherEmail: teacherMap.get(teacherUid) ?? '',
               questionTextById,
+              provenPageIds,
             },
             data
           )
