@@ -1669,6 +1669,64 @@ describe('kept scan pages', () => {
     });
   });
 
+  it('does not list a forged paperPages row the scan record never named', async () => {
+    const response = db.docs.get('quiz_sessions/s1/responses/r1') as Doc;
+    (response.paperPages as Doc[]).push({
+      id: 'pg_scan-9_1',
+      slot: 'primary',
+      kind: 'paper-page',
+      storagePath: 'paper_pages/teacher-uid/scan-9/4/1.webp',
+      uploadState: 'uploaded',
+    });
+    const { rows } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    expect(rows[0].takes.map((t) => t.artifactId)).toEqual([
+      'pg_scan-2_1',
+      'pg_scan-1_2',
+    ]);
+  });
+
+  it('does not list a forged row that names a real scan with another seat’s path', async () => {
+    const response = db.docs.get('quiz_sessions/s1/responses/r1') as Doc;
+    (response.paperPages as Doc[]).push({
+      id: 'pg_scan-2_2',
+      slot: 'primary',
+      kind: 'paper-page',
+      storagePath: 'paper_pages/teacher-uid/scan-2/5/2.webp',
+      uploadState: 'uploaded',
+    });
+    const { rows } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    expect(rows[0].takes.map((t) => t.artifactId)).not.toContain('pg_scan-2_2');
+  });
+
+  it('does not claim or stamp a forged paperPages row when deleting the set', async () => {
+    const response = db.docs.get('quiz_sessions/s1/responses/r1') as Doc;
+    (response.paperPages as Doc[]).push({
+      id: 'pg_scan-9_1',
+      slot: 'primary',
+      kind: 'paper-page',
+      storagePath: 'paper_pages/teacher-uid/scan-9/4/1.webp',
+      uploadState: 'uploaded',
+    });
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      { orgId: ORG, targets: [pagesTarget], deletedBy: 'admin-uid' },
+      deps
+    );
+    expect(results.map((r) => r.artifactId)).toEqual([
+      'pg_scan-2_1',
+      'pg_scan-1_2',
+    ]);
+    const archive = (db.docs.get('quiz_sessions/s1/responses/r1') as Doc)
+      .artifactArchive as Record<string, Doc>;
+    expect(archive['pg_scan-9_1']).toBeUndefined();
+  });
+
   it('deletes the live page from Storage and the older copy from Drive', async () => {
     const deps = makeDeps(db);
     const { results } = await deleteOrgQuizMediaSets(
@@ -1687,7 +1745,7 @@ describe('kept scan pages', () => {
     expect(archive['pg_scan-1_2'].archiveStatus).toBe('deleted');
   });
 
-  it('keeps a page the scan lookup does not trace to this response, and says so', async () => {
+  it('leaves alone a page the scan lookup does not trace to this response', async () => {
     db.set('users/teacher-uid/paper_page_scans/scan-2', {
       seats: { 4: { sessionId: 's1', responseKey: 'someone-else' } },
     });
@@ -1696,10 +1754,7 @@ describe('kept scan pages', () => {
       { orgId: ORG, targets: [pagesTarget], deletedBy: 'admin-uid' },
       deps
     );
-    expect(results[0]).toMatchObject({
-      artifactId: 'pg_scan-2_1',
-      status: 'failed',
-    });
+    expect(results.map((r) => r.artifactId)).not.toContain('pg_scan-2_1');
     expect(deps.deleteStorageObject).not.toHaveBeenCalled();
   });
 

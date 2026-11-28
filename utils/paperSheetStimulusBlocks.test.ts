@@ -119,24 +119,3 @@ describe('paginateStimuli', () => {
     expect(pages[1].html).toContain('BBBB');
   });
 });
-
-describe('paginateStimuli', () => {
-  it('finishes when a blank-line-only paragraph lands on a page break', () => {
-    let calls = 0;
-    // "AAAA" fills a page with no room for another line; "BBBB" fills one alone.
-    const tight: BlockMeasure = (html) => {
-      calls += 1;
-      if (calls > 1000) throw new Error('paginateStimuli did not finish');
-      return /AAAA\n\n\n/.test(html) || /\nBBBB/.test(html) ? 1000 : 0;
-    };
-    const pages = paginateStimuli(
-      [{ title: 'Resource A', item: { kind: 'text', text: 'AAAA\n\n\nBBBB' } }],
-      tight
-    );
-    expect(pages.map((p) => p.title)).toEqual([
-      'Resource A',
-      'Resource A (continued)',
-    ]);
-    expect(pages[1].html).toContain('BBBB');
-  });
-});

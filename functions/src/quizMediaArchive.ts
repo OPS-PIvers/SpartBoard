@@ -319,7 +319,20 @@ export async function isOwnPaperPagePath(
     .collection(PAPER_PAGE_SCANS)
     .doc(parsed.scanId)
     .get();
-  const seats: unknown = snap.data()?.seats;
+  return paperPageInScanSeats(snap.data()?.seats, input, parsed);
+}
+
+/** The pure check behind `isOwnPaperPagePath`, for callers that cache the scan record. */
+export function paperPageInScanSeats(
+  seats: unknown,
+  input: {
+    teacherUid: string;
+    sessionId: string;
+    responseKey: string;
+    storagePath: string;
+  },
+  parsed: { scanId: string; page: number }
+): boolean {
   if (typeof seats !== 'object' || seats === null) return false;
   return Object.entries(seats as Record<string, unknown>).some(
     ([seatText, target]) => {
