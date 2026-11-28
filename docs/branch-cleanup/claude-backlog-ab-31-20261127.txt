@@ -1,0 +1,1 @@
+claude/backlog-ab-31-20261127 (AB-31: remove dead SidebarBoardsActive component)
