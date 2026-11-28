@@ -383,6 +383,9 @@ function isAllowedOrigin(origin: string): boolean {
   );
 }
 
+const ONEROSTER_PAGE_LIMIT = 200;
+const ONEROSTER_MAX_PAGES = 10;
+
 /**
  * Seam for the two outbound Google calls. Exported as a mutable object so the
  * unit test can `vi.spyOn(classroomAddonNet, 'fetchAddOnContext')` without a
@@ -559,12 +562,29 @@ export const classroomAddonNet = {
     const url = `${cleanTenant}${ONEROSTER_BASE}/classes/${encodeURIComponent(
       classId
     )}/students`;
-    const headers = getOAuthHeaders(url, {}, 'GET', clientId, clientSecret);
-    const res = await axios.get<{ users?: ClassLinkStudent[] }>(url, {
-      headers,
-      timeout: API_TIMEOUT_MS,
-    });
-    return res.data.users ?? [];
+    const out: ClassLinkStudent[] = [];
+    for (let page = 0; page < ONEROSTER_MAX_PAGES; page += 1) {
+      const params = {
+        limit: String(ONEROSTER_PAGE_LIMIT),
+        offset: String(page * ONEROSTER_PAGE_LIMIT),
+      };
+      const headers = getOAuthHeaders(
+        url,
+        params,
+        'GET',
+        clientId,
+        clientSecret
+      );
+      const res = await axios.get<{ users?: ClassLinkStudent[] }>(url, {
+        params,
+        headers,
+        timeout: API_TIMEOUT_MS,
+      });
+      const batch = res.data.users ?? [];
+      out.push(...batch);
+      if (batch.length < ONEROSTER_PAGE_LIMIT) break;
+    }
+    return out;
   },
 
   async createAttachment(

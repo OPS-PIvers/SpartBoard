@@ -12,6 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as CryptoJS from 'crypto-js';
+import axios from 'axios';
 
 // Configurable mock state (reset between tests).
 let orgIdForDomain: string | null = 'org-orono';
@@ -3226,5 +3227,32 @@ describe('final-score pushes (AB-389)', () => {
       auth: { uid: 'teacher-123' },
     })) as { pushed: number; results: unknown[]; awaiting?: number };
     expect(res).toMatchObject({ pushed: 0, results: [], awaiting: 1 });
+  });
+});
+
+describe('classroomAddonNet.fetchClassStudents pagination', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('follows OneRoster offsets so students past the first page are returned', async () => {
+    const mk = (from: number, n: number) =>
+      Array.from({ length: n }, (_, i) => ({ sourcedId: `s${from + i}` }));
+    const get = vi
+      .spyOn(axios, 'get')
+      .mockResolvedValueOnce({ data: { users: mk(0, 200) } })
+      .mockResolvedValueOnce({ data: { users: mk(200, 30) } });
+    const students = await classroomAddonNet.fetchClassStudents(
+      'https://t.example',
+      'id',
+      'secret',
+      'c1'
+    );
+    expect(students).toHaveLength(230);
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(get.mock.calls[1][1]?.params).toEqual({
+      limit: '200',
+      offset: '200',
+    });
   });
 });
