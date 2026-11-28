@@ -117,7 +117,7 @@ const generateContentMock = vi.fn(() =>
   Promise.reject(new Error('generateContentMock: no response configured'))
 );
 
-// Storage mocks; the retired archiveActivityWallPhoto test asserts none are touched.
+// Storage bucket mocks.
 const storageFileGetMetadata = vi.fn(() =>
   Promise.resolve([{ size: '0', contentType: 'image/jpeg' }])
 );
@@ -131,9 +131,7 @@ const mockStorageBucket = {
   })),
 };
 
-// Submission ref mocks for archiveActivityWallPhoto. The handler chains
-// `db.collection('activity_wall_sessions').doc(...).collection('submissions').doc(...)`
-// then calls `.set()` and `.get()` on the leaf.
+// Leaf doc for `activity_wall_sessions/{id}/submissions/{id}`.
 const submissionRefGet = vi.fn(() =>
   Promise.resolve({
     exists: true,
@@ -146,9 +144,7 @@ const submissionDoc = {
   set: submissionRefSet,
 };
 
-// Transaction mocks for the legacy callable's `claimSubmissionForArchive`
-// call. `tx.get` mirrors submissionRefGet's doc so the claim sees the same
-// 'firebase' status (storagePath present, no archiveStatus) and claims it.
+// Shared transaction mocks; tests override `transactionGet` per case.
 const transactionGet = vi.fn(() =>
   Promise.resolve({
     exists: true,
@@ -618,7 +614,6 @@ import {
   checkUrlCompatibility,
   adminAnalytics,
   getPseudonymsForAssignmentV1,
-  archiveActivityWallPhoto,
   generateWithAI,
   generateVideoActivity,
   transcribeVideoWithGemini,
@@ -3451,33 +3446,6 @@ describe('getClassLinkRosterV1 chunked fan-out', () => {
   });
 });
 
-describe('archiveActivityWallPhoto (retired)', () => {
-  it('touches no Storage object or submission doc, whatever the caller sends', async () => {
-    vi.clearAllMocks();
-    const handler = archiveActivityWallPhoto as unknown as (
-      data: unknown,
-      context: unknown
-    ) => unknown;
-
-    await expect(
-      handler(
-        {
-          accessToken: 'token',
-          sessionId: 'teacher-uid_session1',
-          submissionId: 'sub1',
-          activityId: 'act1',
-        },
-        { auth: { uid: 'teacher-uid', token: { email: 'a@b.c' } } }
-      )
-    ).resolves.toEqual({ skipped: true, archiveStatus: 'retired' });
-
-    expect(mockStorageBucket.file).not.toHaveBeenCalled();
-    expect(submissionRefGet).not.toHaveBeenCalled();
-    expect(submissionRefSet).not.toHaveBeenCalled();
-    expect(runTransactionMock).not.toHaveBeenCalled();
-  });
-});
-
 describe('generateWithAI read caching', () => {
   // Cloud Functions 2nd-gen reuses warm instances, so the module-scope
   // caches in index.ts should turn repeat reads into no-ops within a
@@ -3904,7 +3872,6 @@ describe('index barrel — deployed export set', () => {
     'fetchExternalProxy',
     'checkUrlCompatibility',
     // Activity Wall archive
-    'archiveActivityWallPhoto',
     'sweepActivityWallArchives',
     'archiveActivityWallSubmissionOnUpdate',
     'archiveActivityWallSubmissionOnCreate',
