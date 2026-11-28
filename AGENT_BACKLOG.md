@@ -160,7 +160,6 @@ From the [One Path Audit](https://claude.ai/artifact/KLgtqQcpLr6FLTjP7mtPvF): pl
 - **AB-18 ExamView sections everywhere** (M). Carry `sections` into substitute launch (`subLaunchAssignment`) and PLC synced copies (`synced_quizzes`), and print the choose-N count on the answer sheet bubble grid (today only the test paper shows it). Plan: `docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md`.
 - **AB-19 Remove the classic GL editor** (M). GL_STUDIO_GESTURES PR 5: delete the Studio's "Open classic editor" (`glStudio.openClassicEditor` in `EditorHeader.tsx`) and the classic `GuidedLearningEditorModal` from `GuidedLearning/Widget.tsx`. Carry over any tour anchors.
 - **AB-20 GL copy audit** (M). Apply the remaining SHORTEN/DELETE/MOVE verdicts (about 40 rows) in `docs/plans/copy-audit/guided-learning.md`, spot-checking each first; update all four locales.
-- **AB-22 Speak editor re-lookups** (S). From S13 (`docs/multilingual-pronunciation-engine.md`): when hosting runs a newer engine version than functions, editor saves look up every card again.
 - **AB-23 Import review minors** (S). From the 2026-10-30 release review; all behind the admin-only `universal-import` flag. They must be fixed before Import opens (PT-49).
   - S1: image URLs not run through `storedUrl`; the reader-failure log can be spammed; the inbox cap is soft.
   - S2: Import code is statically imported into the `DashboardView` chunk (bundle size).
