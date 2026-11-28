@@ -293,23 +293,33 @@ async function servedRubricState(
   sessionId: string,
   rubric: Rubric,
   fallbackBefore: Rubric
-): Promise<{ exists: boolean; stale: boolean; before: Rubric[] }> {
+): Promise<{
+  exists: boolean;
+  stale: boolean;
+  rescore: boolean;
+  before: Rubric[];
+}> {
   const { exists, question: served } = await readServedRubric(
     sessionId,
     rubric
   );
+  const quizChanged = rubricPointsChanged(fallbackBefore, rubric);
   // What students were graded against wins over the loaded quiz, which may already hold the edit.
   if (!served?.rubricSnapshot)
     return {
       exists,
-      stale: rubricPointsChanged(fallbackBefore, rubric),
+      stale: quizChanged,
+      rescore: quizChanged,
       before: [fallbackBefore],
     };
+  const stale =
+    served.points !== rubricMaxPoints(rubric) ||
+    rubricPointsChanged(served.rubricSnapshot, rubric);
   return {
     exists,
-    stale:
-      served.points !== rubricMaxPoints(rubric) ||
-      rubricPointsChanged(served.rubricSnapshot, rubric),
+    stale,
+    // Reverting a partly failed edit: served points already match, but rescored responses do not.
+    rescore: stale || quizChanged,
     // A response rescored by an earlier edit that partly failed holds the quiz's previous points.
     before: [served.rubricSnapshot, fallbackBefore],
   };
@@ -323,14 +333,14 @@ export async function refreshRubricForSession(opts: {
   /** The quiz this assignment grades against, with the edit applied. */
   quiz: QuizData;
 }): Promise<void> {
-  const { stale, before } = await servedRubricState(
+  const { stale, rescore, before } = await servedRubricState(
     opts.sessionId,
     opts.rubric,
     opts.before
   );
-  if (!stale) return;
+  if (!rescore) return;
   await rescoreSessionResponses({ ...opts, before });
-  await refreshAssignmentRubric(opts);
+  if (stale) await refreshAssignmentRubric(opts);
 }
 
 /** Reads and rewrites an assignment's frozen Drive copy. */
@@ -383,15 +393,15 @@ export async function refreshRubricPeers(
       continue;
     try {
       // Decided per peer from what it serves, so a retry repairs one that failed before.
-      const { exists, stale } = await servedRubricState(
+      const { exists, stale, rescore } = await servedRubricState(
         a.id,
         opts.rubric,
         opts.before
       );
       // A deleted session has nothing to rescore, so its frozen copy is left alone.
-      if (!exists || !stale) continue;
+      if (!exists || !rescore) continue;
       const frozenId = assignmentFrozenFileId(a);
-      if (frozenId && frozenId !== opts.libraryDriveFileId) {
+      if (stale && frozenId && frozenId !== opts.libraryDriveFileId) {
         const held = await writeRubricToFrozenCopy(
           frozenId,
           opts.rubric,

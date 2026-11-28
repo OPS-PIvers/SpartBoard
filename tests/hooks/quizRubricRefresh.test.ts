@@ -440,6 +440,40 @@ describe('refreshRubricForSession', () => {
     expect(points('a1')).toBe(5);
   });
 
+  it('puts a rescored response back when a partly failed edit is reverted', async () => {
+    seedSession('a1');
+    store.set('quiz_sessions/a1/responses/s2', {
+      ...store.get('quiz_sessions/a1/responses/s1'),
+      studentUid: 's2',
+    });
+    failRefreshFor.add('quiz_sessions/a1/responses/s1');
+    await expect(
+      refreshRubricForSession({
+        sessionId: 'a1',
+        rubric: rubric(5),
+        before: rubric(2),
+        quiz: edited(5),
+      })
+    ).rejects.toThrow('offline');
+    failRefreshFor.clear();
+    const servedBefore = JSON.stringify(store.get('quiz_sessions/a1'));
+    // The library holds the failed edit, so reverting to the served points has it as before.
+    await refreshRubricForSession({
+      sessionId: 'a1',
+      rubric: rubric(2),
+      before: rubric(5),
+      quiz: quizWith(),
+    });
+    for (const id of ['s1', 's2']) {
+      const r = store.get(`quiz_sessions/a1/responses/${id}`) as ReturnType<
+        typeof response
+      >;
+      expect(r.grading.w1.pointsAwarded).toBe(4);
+      expect(r.scorePoints).toMatchObject({ earned: 5, possible: 5 });
+    }
+    expect(JSON.stringify(store.get('quiz_sessions/a1'))).toBe(servedBefore);
+  });
+
   const rescore = (r: Rubric = rubric(5)) =>
     refreshRubricForSession({
       sessionId: 'a1',
@@ -719,7 +753,11 @@ describe('refreshRubricPeers', () => {
     }) as QuizAssignment;
   const run = (
     assignments: QuizAssignment[],
-    extra: { rubric?: Rubric; activeAssignmentId?: string } = {}
+    extra: {
+      rubric?: Rubric;
+      before?: Rubric;
+      activeAssignmentId?: string;
+    } = {}
   ) =>
     refreshRubricPeers(assignments, {
       quizId: 'quiz1',
@@ -800,6 +838,34 @@ describe('refreshRubricPeers', () => {
     );
     expect(frozenCopies.save).not.toHaveBeenCalled();
     expect(drive.get('f1')?.questions[0].points).toBe(4);
+  });
+
+  it('rescores a reverted peer without rewriting its frozen copy', async () => {
+    seedSession('frozen');
+    store.set('quiz_sessions/frozen/responses/s1', {
+      ...store.get('quiz_sessions/frozen/responses/s1'),
+      grading: {
+        w1: {
+          pointsAwarded: 7,
+          rubricScores: [
+            { criterionId: 'c1', levelId: 'l2', points: 5 },
+            { criterionId: 'c2', levelId: 'l3', points: 2 },
+          ],
+        },
+      },
+    });
+    drive.set('f1', quizWith());
+    expect(
+      await run([assignment('frozen', { frozenDriveFileId: 'f1' })], {
+        rubric: rubric(2),
+        before: rubric(5),
+      })
+    ).toBe(true);
+    expect(frozenCopies.save).not.toHaveBeenCalled();
+    expect(response('frozen').grading.w1.pointsAwarded).toBe(4);
+    expect(
+      store.get('quiz_sessions/frozen')?.rubricRefreshedAt
+    ).toBeUndefined();
   });
 
   it('does nothing for a label-only edit', async () => {
