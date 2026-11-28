@@ -3398,8 +3398,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'sidebar.gradebook': ['board'],
     'sidebar.google-drive': ['board'],
     'sidebar.sign-out': ['board'],
-    'sidebar.board-item': ['board.sidebar'],
-    'sidebar.manage-boards': ['board.sidebar'],
     'sidebar.drive-refresh': ['board.sidebar-google-drive'],
     'sidebar.drive-disconnect': ['board.sidebar-google-drive'],
     'sidebar.drive-connect': ['board.sidebar-google-drive'],

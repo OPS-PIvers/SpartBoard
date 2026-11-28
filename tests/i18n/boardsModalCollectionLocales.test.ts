@@ -44,9 +44,6 @@
  *   components/boardsModal/CreateFromTemplateModal.tsx
  *     t('templatePicker.title'), t('templatePicker.loading'), etc.
  *
- *   components/layout/sidebar/SidebarBoardsActive.tsx
- *     t('sidebar.boards.activeCollection'), t('sidebar.boards.manageAll')
- *
  * This test loads the locale JSON files directly (not through i18next) so the
  * assertions fire regardless of any defaultValue fallbacks in the call sites.
  *

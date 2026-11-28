@@ -109,7 +109,7 @@ test.describe('Board Sharing', () => {
 
     // After import the imported board's name carries a "(Synced)" suffix
     // (see `importSharedBoard` in DashboardContext.tsx). It shows up in
-    // the SidebarBoardsActive picker (root collection).
+    // the sidebar Boards picker (root collection).
     await page.getByTitle('Open Menu').click();
     await page
       .locator('nav button')

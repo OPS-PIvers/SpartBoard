@@ -546,10 +546,7 @@ export const SURFACES: TourSurfaceMap = {
   'board.sidebar': {
     label: 'Sidebar menu',
     kind: 'sidebar',
-    files: [
-      'components/layout/sidebar/',
-      'components/layout/sidebar/SidebarBoardsActive.tsx',
-    ],
+    files: ['components/layout/sidebar/'],
     opensWith: 'sidebar.open-menu',
   },
   'board.sidebar-classes': {
