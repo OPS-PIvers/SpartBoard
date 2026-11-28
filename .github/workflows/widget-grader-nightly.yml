@@ -42,7 +42,7 @@ jobs:
     if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-24.04
     container:
-      image: mcr.microsoft.com/playwright:v1.64.0-jammy
+      image: mcr.microsoft.com/playwright:v1.65.1-jammy
       options: --shm-size=1g
     name: Full widget sweep
     timeout-minutes: 320
