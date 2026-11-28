@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 159_
-_Last run: 2026-11-27_
+_Run count: 160_
+_Last run: 2026-11-28_
 _Base branch: dev-paul_
 
 ---
@@ -580,6 +580,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-11-28 | `claude/kind-johnson-fgjp8i` | D1/D2/D3/D4/D5 | Aligned (run 160) — light probe of `2f7bb1a3^..dev-paul` (67 commits, 77 added/modified non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`, no hand-rolled `text-xxs font-bold/black uppercase tracking-widest` labels, no `aria-pressed`/`role="group"`, no `items-center justify-center` empty-state shapes, no new `Widget.tsx`/`Settings.tsx`. No subagents dispatched, no code shipped; `pnpm run validate` skipped per CLAUDE.md. | — |
 | 2026-11-27 | `nightly/unifier-log-2026-11-27` | D1/D2/D3/D4/D5 | Aligned (run 159) — light probe of `cbdb19ba^..dev-paul` (29 commits, 56 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`/`common/Toast`, no `#2d3f89`/`#ad2122`/`#4356a0`, no hand-rolled `text-xxs font-bold/black uppercase tracking-widest` labels, no `aria-pressed`/`role="group"`, no new `Widget.tsx`/`Settings.tsx`. No subagents dispatched, no code shipped; `pnpm run validate` skipped per CLAUDE.md. | — |
 | 2026-11-26 | `nightly/unifier-log-2026-11-26` | D1/D2/D3/D4/D5 | Aligned (run 158) — light probe of `aae1d8cf..dev-paul` (135 commits, 706 non-test client files). Diff-scoped greps over added lines: no cross-directory `'../../'` imports, no `<Toast`. The one `aria-pressed={selectionMode}` is a multi-select toggle, not an exclusive-choice group. `text-xxs font-black/bold uppercase tracking-widest` hits (`PdfLibraryModal.tsx` tab buttons, `Stations/IconOrImageInput.tsx` action button) are buttons, not D3 labels. `#2d3f89`/`#ad2122` in the new `components/common/library/folderColors.ts` are legacy stored-hex to folder-colour-id data keys (identity of persisted values, not styling), so treated as an exception; the other hex hit is a test fixture. 'No … yet' hits are list/modal copy, not widget empty states (D1 out of scope). No subagents dispatched, no code shipped; `pnpm run validate` skipped per CLAUDE.md. | — |
 | 2026-11-25 | `claude/kind-johnson-no05eu` | D4 | Unified (run 157) — light probe of `aae1d8cf^..dev-paul` found one real drift: `components/common/library/assigned/AssignedChip.tsx` imported `'../../useCloseOnHostResize'`; now `'@/components/common/useCloseOnHostResize'`. Enforcement: new `eslint.config.js` block bans `'../../'` imports in non-test `components/common/**` (verified firing on a temp file; the folder had no other hits). Mechanical (same module resolved). D1/D2/D3/D5 aligned: no brand hex, label combos, `<Toast`, `aria-pressed` or new Widget/Settings files in added lines. Fix applied by orchestrator directly (one-line change, no subagent). | — |
