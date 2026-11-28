@@ -232,7 +232,7 @@ describe('AssignmentDetailPane — row switch mid-save', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
 
     await act(async () => {
-      resolveSave({ skipped: [] });
+      await Promise.resolve(resolveSave({ skipped: [] }));
     });
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
