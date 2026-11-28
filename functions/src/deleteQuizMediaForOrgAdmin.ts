@@ -284,15 +284,16 @@ export function collectKeptPageArtifacts(
   const pages = Array.isArray(data.paperPages)
     ? (data.paperPages as StoredArtifact[])
     : [];
+  const unproven = new Set<string>();
   for (const page of pages) {
     const id = asString(page?.id);
-    if (
-      page?.kind === 'paper-page' &&
-      (!provenPageIds || provenPageIds.has(id))
-    )
+    if (page?.kind !== 'paper-page') continue;
+    if (!provenPageIds || provenPageIds.has(id))
       add(id, asString(page.storagePath));
+    else unproven.add(id);
   }
-  for (const id of Object.keys(readArchiveMap(data))) add(id, '');
+  for (const id of Object.keys(readArchiveMap(data)))
+    if (!unproven.has(id)) add(id, '');
   return out;
 }
 
@@ -997,6 +998,7 @@ export async function deleteOrgQuizMediaSets(
   const teacherMap = await loadOrgTeacherUids(db, input.orgId);
   const results: DeleteItemResult[] = [];
   const tokenFor = createTokenResolver(deps);
+  const scanSeats = new Map<string, Promise<unknown>>();
 
   for (const target of input.targets) {
     const base = {
@@ -1050,7 +1052,22 @@ export async function deleteOrgQuizMediaSets(
     }
     const data = responseSnap.data() ?? {};
     const studentUid = asString(data.studentUid);
-    const artifacts = collectTargetArtifacts(data, target.questionId);
+    const artifacts =
+      target.questionId === KEPT_PAGES_QUESTION_ID
+        ? collectKeptPageArtifacts(
+            data,
+            await provenKeptPageIds(
+              db,
+              {
+                teacherUid,
+                sessionId: target.sessionId,
+                responseKey: target.responseKey,
+              },
+              data,
+              scanSeats
+            )
+          )
+        : collectTargetArtifacts(data, target.questionId);
     if (artifacts.length === 0) {
       results.push({
         ...base,
