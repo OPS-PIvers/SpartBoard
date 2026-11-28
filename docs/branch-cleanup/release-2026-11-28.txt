@@ -1,0 +1,1 @@
+claude/project-thread-bwwu4k (release 2026.11.28 pin, #6864, and its follow-ups PR)
