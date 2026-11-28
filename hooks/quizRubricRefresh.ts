@@ -184,22 +184,26 @@ export async function refreshAssignmentRubric(opts: {
   });
 }
 
-/** The first served question whose main rubric is this one. */
+/** Whether the session exists, and its first served question whose main rubric is this one. */
 async function readServedRubric(
   sessionId: string,
   rubric: Rubric
-): Promise<QuizPublicQuestion | undefined> {
+): Promise<{ exists: boolean; question?: QuizPublicQuestion }> {
   const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
   const session = (await getDoc(sessionRef)).data() as QuizSession | undefined;
+  if (!session) return { exists: false };
   const served =
-    session?.questionsInContent === true
+    session.questionsInContent === true
       ? ((
           await getDoc(
             doc(sessionRef, QUIZ_CONTENT_COLLECTION, QUIZ_CONTENT_DOC)
           )
         ).data()?.publicQuestions as QuizPublicQuestion[] | undefined)
-      : session?.publicQuestions;
-  return served?.find((q) => sameRubric(q.rubricSnapshot, rubric));
+      : session.publicQuestions;
+  return {
+    exists: true,
+    question: served?.find((q) => sameRubric(q.rubricSnapshot, rubric)),
+  };
 }
 
 type FieldUpdate = [string | FieldPath, unknown];
@@ -208,7 +212,7 @@ type FieldUpdate = [string | FieldPath, unknown];
 async function rescoreSessionResponses(opts: {
   sessionId: string;
   rubric: Rubric;
-  before: Rubric;
+  before: Rubric[];
   quiz: QuizData;
 }): Promise<void> {
   const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, opts.sessionId);
@@ -284,24 +288,30 @@ async function rescoreSessionResponses(opts: {
   if (failures.length) throw failures[0];
 }
 
-/** Whether a session still serves other points for this rubric, and the rubric its grades were made against. */
+/** Whether a session exists and still serves other points for this rubric, and the rubrics its grades may have been made against. */
 async function servedRubricState(
   sessionId: string,
   rubric: Rubric,
   fallbackBefore: Rubric
-): Promise<{ stale: boolean; before: Rubric }> {
-  const served = await readServedRubric(sessionId, rubric);
+): Promise<{ exists: boolean; stale: boolean; before: Rubric[] }> {
+  const { exists, question: served } = await readServedRubric(
+    sessionId,
+    rubric
+  );
   // What students were graded against wins over the loaded quiz, which may already hold the edit.
   if (!served?.rubricSnapshot)
     return {
+      exists,
       stale: rubricPointsChanged(fallbackBefore, rubric),
-      before: fallbackBefore,
+      before: [fallbackBefore],
     };
   return {
+    exists,
     stale:
       served.points !== rubricMaxPoints(rubric) ||
       rubricPointsChanged(served.rubricSnapshot, rubric),
-    before: served.rubricSnapshot,
+    // A response rescored by an earlier edit that partly failed holds the quiz's previous points.
+    before: [served.rubricSnapshot, fallbackBefore],
   };
 }
 
@@ -373,8 +383,13 @@ export async function refreshRubricPeers(
       continue;
     try {
       // Decided per peer from what it serves, so a retry repairs one that failed before.
-      const { stale } = await servedRubricState(a.id, opts.rubric, opts.before);
-      if (!stale) continue;
+      const { exists, stale } = await servedRubricState(
+        a.id,
+        opts.rubric,
+        opts.before
+      );
+      // A deleted session has nothing to rescore, so its frozen copy is left alone.
+      if (!exists || !stale) continue;
       const frozenId = assignmentFrozenFileId(a);
       if (frozenId && frozenId !== opts.libraryDriveFileId) {
         const held = await writeRubricToFrozenCopy(

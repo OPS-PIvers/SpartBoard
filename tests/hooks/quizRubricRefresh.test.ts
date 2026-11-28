@@ -407,6 +407,39 @@ describe('refreshRubricForSession', () => {
     expect(points('a1')).toBe(7);
   });
 
+  it('rescores a response an earlier partly failed edit already moved when the next edit lands', async () => {
+    seedSession('a1');
+    store.set('quiz_sessions/a1/responses/s2', {
+      ...store.get('quiz_sessions/a1/responses/s1'),
+      studentUid: 's2',
+    });
+    failRefreshFor.add('quiz_sessions/a1/responses/s1');
+    await expect(
+      refreshRubricForSession({
+        sessionId: 'a1',
+        rubric: rubric(5),
+        before: rubric(2),
+        quiz: edited(5),
+      })
+    ).rejects.toThrow('offline');
+    failRefreshFor.clear();
+    // The library already holds the first edit, so the second edit's before is it.
+    await refreshRubricForSession({
+      sessionId: 'a1',
+      rubric: rubric(3),
+      before: rubric(5),
+      quiz: edited(3),
+    });
+    for (const id of ['s1', 's2']) {
+      const r = store.get(`quiz_sessions/a1/responses/${id}`) as ReturnType<
+        typeof response
+      >;
+      expect(r.grading.w1.pointsAwarded).toBe(5);
+      expect(r.scorePoints).toMatchObject({ earned: 6, possible: 6 });
+    }
+    expect(points('a1')).toBe(5);
+  });
+
   const rescore = (r: Rubric = rubric(5)) =>
     refreshRubricForSession({
       sessionId: 'a1',
@@ -758,6 +791,15 @@ describe('refreshRubricPeers', () => {
     ).toBe(true);
     expect(points('drawn')).toBe(4);
     expect(frozenCopies.save).not.toHaveBeenCalled();
+  });
+
+  it('leaves the frozen copy of a peer whose session was deleted alone', async () => {
+    drive.set('f1', quizWith());
+    expect(await run([assignment('gone', { frozenDriveFileId: 'f1' })])).toBe(
+      true
+    );
+    expect(frozenCopies.save).not.toHaveBeenCalled();
+    expect(drive.get('f1')?.questions[0].points).toBe(4);
   });
 
   it('does nothing for a label-only edit', async () => {

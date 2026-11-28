@@ -142,6 +142,31 @@ describe('useQuizAssignments.updateAssignmentSettings — live session mirror', 
     });
   });
 
+  it('clears every removed option key on the session doc too', async () => {
+    const { result } = renderHook(() => useQuizAssignments('teacher-1'));
+    await waitFor(() => expect(result.current.assignments).toHaveLength(1));
+    await act(async () => {
+      await result.current.updateAssignmentSettings('a-1', {
+        sessionOptionEdits: {
+          shuffleQuestions: undefined,
+          showExplanations: undefined,
+          tabWarningsEnabled: undefined,
+        },
+      });
+    });
+    const sessionPatch = batchUpdate.mock.calls.find(
+      ([ref]) => ref === 'quiz_sessions/a-1'
+    )?.[1] as Record<string, unknown>;
+    const cleared = { __deleteFieldSentinel: true };
+    expect(sessionPatch).toEqual(
+      expect.objectContaining({
+        shuffleQuestions: cleared,
+        showExplanations: cleared,
+        tabWarningsEnabled: cleared,
+      })
+    );
+  });
+
   it('clears the session time limit when the limit is turned off', async () => {
     const { result } = renderHook(() => useQuizAssignments('teacher-1'), {
       wrapper: timeLimitWrapper,

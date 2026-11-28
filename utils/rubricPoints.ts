@@ -142,9 +142,9 @@ export const rubricPointsChanged = (before: Rubric, after: Rubric): boolean =>
   rubricMaxPoints(before) !== rubricMaxPoints(after) ||
   levelPointsKey(before) !== levelPointsKey(after);
 
-/** Grades whose picked levels changed points; typed overrides (points not equal to the old level) are left alone. */
+/** Grades whose picked levels changed points; typed overrides (points matching no earlier version of the level) are left alone. */
 export const rescoreRubricGrades = (
-  before: Rubric,
+  before: Rubric | Rubric[],
   after: Rubric,
   grading: Record<string, WrittenAnswerGrade>
 ): Array<[string, WrittenAnswerGrade]> => {
@@ -154,7 +154,9 @@ export const rescoreRubricGrades = (
         c.levels.map((l): [string, number] => [`${c.id}|${l.id}`, l.points])
       )
     );
-  const oldPoints = levelPoints(before);
+  const oldPoints = (Array.isArray(before) ? before : [before]).map(
+    levelPoints
+  );
   const newPoints = levelPoints(after);
   const newMax = new Map(
     after.criteria.map((c) => [c.id, criterionMaxPoints(c)])
@@ -165,7 +167,6 @@ export const rescoreRubricGrades = (
     let delta = 0;
     const rubricScores = grade.rubricScores.map((s) => {
       const id = `${s.criterionId}|${s.levelId}`;
-      const was = oldPoints.get(id);
       const now = newPoints.get(id);
       const max = newMax.get(s.criterionId);
       // A score on a removed level stays as a typed score, capped at the row's new max.
@@ -174,13 +175,12 @@ export const rescoreRubricGrades = (
         return { ...s, points: max };
       }
       if (
-        was === undefined ||
         now === undefined ||
-        s.points !== was ||
-        now === was
+        now === s.points ||
+        !oldPoints.some((m) => m.get(id) === s.points)
       )
         return s;
-      delta += now - was;
+      delta += now - s.points;
       return { ...s, points: now };
     });
     if (
