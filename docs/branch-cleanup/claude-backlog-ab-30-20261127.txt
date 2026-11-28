@@ -1,0 +1,1 @@
+claude/backlog-ab-30-20261127 (AB-30: delete archiveActivityWallPhoto, make activity_wall_photos read-only)

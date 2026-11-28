@@ -46,9 +46,6 @@ export { fetchLinkPreview } from './linkPreview';
 export { fetchImportPageV1 } from './importPageFetch';
 export { fetchImportImage } from './fetchImportImage';
 
-// ── Activity Wall photo → Google Drive archive (legacy client callable) ────
-export { archiveActivityWallPhoto } from './driveArchive';
-
 // ── Activity Wall media → teacher Drive archive (server-driven) + sweep ────
 export {
   archiveActivityWallSubmissionOnCreate,

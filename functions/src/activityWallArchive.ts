@@ -3,8 +3,6 @@
  * buffer, the teacher's Google Drive is the durable home. Firestore triggers
  * (and the hourly sweep) run this with no teacher present, minting the access
  * token from the stored refresh token like `quizMediaArchive.ts` does.
- *
- * The old `archiveActivityWallPhoto` callable in `driveArchive.ts` is now a no-op.
  */
 import { HttpsError } from 'firebase-functions/v2/https';
 import * as fs from 'fs/promises';
@@ -1015,7 +1013,7 @@ export async function finalizeResumedSubmission(
  * write fields the current `firestore.rules` submissions update whitelist
  * does not allow, which would break the legacy client's own updates until the
  * separate rules PR (P1-4) lands. Legacy submissions were left to the
- * `archiveActivityWallPhoto` callable, which is now retired.
+ * `archiveActivityWallPhoto` callable, since deleted.
  */
 export function shouldArchiveSubmission(
   data: Record<string, unknown> | undefined

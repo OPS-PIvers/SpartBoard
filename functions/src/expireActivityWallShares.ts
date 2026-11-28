@@ -6,7 +6,7 @@
  * `publiclyShared: true` onto `activity_wall_sessions/{sessionId}` when a
  * teacher creates a `shared_activity_walls/{shareId}` gallery link — that
  * flag is what unlocks the `submissions` subcollection read (firestore.rules)
- * and the `activity_wall_photos/{sessionId}/*` Storage read for anonymous
+ * and the legacy `activity_wall_photos/{sessionId}/*` Storage read for anonymous
  * gallery viewers. Firestore rules cannot look up "is there a live share for
  * this session" directly (rules only support `get()`/`exists()` on an EXACT
  * document path, not a query, and shareId is an unrelated random UUID — not
