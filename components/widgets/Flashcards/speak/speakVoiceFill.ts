@@ -2,10 +2,13 @@
 import { useSyncExternalStore } from 'react';
 import type { FlashcardCard, FlashcardCardSpeak, FlashcardSet } from '@/types';
 import { speakLanguageOf } from '@/config/pronunciationGroups';
-import { SPEAK_G2P_VOICES_PENDING } from '@/utils/pronunciation/g2pVersion';
 import { logError } from '@/utils/logError';
 import { callVoiceLookup, type SpeakLookupCall } from './lookupSpeakReferences';
-import { keepSpeakConfirmation, speakForTerm } from './speakEditorState';
+import {
+  keepSpeakConfirmation,
+  speakForTerm,
+  speakVersionMatches,
+} from './speakEditorState';
 
 export const VOICE_BATCH_SIZE = 5;
 export const VOICE_PARALLEL_CALLS = 3;
@@ -97,7 +100,7 @@ export const cardWaitsOnVoices = (card: FlashcardCard): boolean => {
   const speak = speakForTerm(card);
   return (
     !!speak &&
-    speak.g2pVersion === SPEAK_G2P_VOICES_PENDING &&
+    speakVersionMatches(speak.g2pVersion, true) &&
     Array.isArray(speak.refs) &&
     Array.isArray(speak.dialects) &&
     speak.dialects.length > 0
@@ -116,7 +119,7 @@ export function applyVoiceResults<T extends Pick<FlashcardSet, 'id' | 'cards'>>(
     const speak = speakForTerm(card);
     if (
       !next ||
-      next.g2pVersion === SPEAK_G2P_VOICES_PENDING ||
+      speakVersionMatches(next.g2pVersion, true) ||
       !speak ||
       !cardWaitsOnVoices(card) ||
       fillKey(speak) !== fillKey(next)
