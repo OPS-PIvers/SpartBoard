@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MagicLayoutModal } from '@/components/layout/dock/MagicLayoutModal';
 
@@ -17,8 +17,11 @@ vi.mock('@/context/useAuth', () => ({
     canAccessWidget: () => true,
   }),
 }));
+const outwardMock = vi.hoisted(() => ({
+  value: { locked: false, active: false },
+}));
 vi.mock('@/hooks/useViewAsOutward', () => ({
-  useViewAsOutward: () => ({ locked: false, active: false }),
+  useViewAsOutward: () => outwardMock.value,
 }));
 
 describe('MagicLayoutModal Enter', () => {
@@ -30,5 +33,39 @@ describe('MagicLayoutModal Enter', () => {
     fireEvent.keyDown(box, { key: 'Enter' });
     fireEvent.keyDown(box, { key: 'Enter' });
     expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs once when Enter repeats while the View As confirm is pending', async () => {
+    generate.mockReset();
+    generate.mockReturnValue(new Promise(() => undefined));
+    let accept: (v: boolean) => void = () => undefined;
+    const confirm = vi.fn(() => new Promise<boolean>((r) => (accept = r)));
+    outwardMock.value = { locked: false, active: true, confirm };
+    render(<MagicLayoutModal onClose={vi.fn()} />);
+    const box = screen.getByPlaceholderText(/Math rotations/);
+    fireEvent.change(box, { target: { value: 'Morning meeting' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(confirm).toHaveBeenCalledTimes(1);
+    accept(true);
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+    outwardMock.value = { locked: false, active: false };
+  });
+
+  it('allows another try after a declined confirm', async () => {
+    generate.mockReset();
+    const confirm = vi.fn().mockResolvedValue(false);
+    outwardMock.value = { locked: false, active: true, confirm };
+    render(<MagicLayoutModal onClose={vi.fn()} />);
+    const box = screen.getByPlaceholderText(/Math rotations/);
+    fireEvent.change(box, { target: { value: 'Morning meeting' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    fireEvent.keyDown(box, { key: 'Enter' });
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(2));
+    expect(generate).not.toHaveBeenCalled();
+    outwardMock.value = { locked: false, active: false };
   });
 });

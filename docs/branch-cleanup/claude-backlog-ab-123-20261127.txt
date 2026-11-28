@@ -1,0 +1,1 @@
+claude/backlog-ab-123-20261127 (AB-123: Layout Generator in-flight ref blocks double run during View As confirm)
