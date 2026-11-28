@@ -160,7 +160,6 @@ From the [One Path Audit](https://claude.ai/artifact/KLgtqQcpLr6FLTjP7mtPvF): pl
 - **AB-18 ExamView sections everywhere** (M). Carry `sections` into substitute launch (`subLaunchAssignment`) and PLC synced copies (`synced_quizzes`), and print the choose-N count on the answer sheet bubble grid (today only the test paper shows it). Plan: `docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md`.
 - **AB-19 Remove the classic GL editor** (M). GL_STUDIO_GESTURES PR 5: delete the Studio's "Open classic editor" (`glStudio.openClassicEditor` in `EditorHeader.tsx`) and the classic `GuidedLearningEditorModal` from `GuidedLearning/Widget.tsx`. Carry over any tour anchors.
 - **AB-20 GL copy audit** (M). Apply the remaining SHORTEN/DELETE/MOVE verdicts (about 40 rows) in `docs/plans/copy-audit/guided-learning.md`, spot-checking each first; update all four locales.
-- **AB-21 Confirm VA/GL target tagging** (S). Gradebook D29 expects learning-target tagging on VA and GL questions. Check that it shipped; if not, add a brief here.
 - **AB-22 Speak editor re-lookups** (S). From S13 (`docs/multilingual-pronunciation-engine.md`): when hosting runs a newer engine version than functions, editor saves look up every card again.
 - **AB-23 Import review minors** (S). From the 2026-10-30 release review; all behind the admin-only `universal-import` flag. They must be fixed before Import opens (PT-49).
   - S1: image URLs not run through `storedUrl`; the reader-failure log can be spammed; the inbox cap is soft.
@@ -874,7 +873,7 @@ Each stays in `docs/plans/` until built, then moves to `docs/plans/shipped/` and
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------ |
 | `docs/plans/IMPORT.md`                                         | Wave 1 and the Edpuzzle, YouTube, Quizlet and Google Forms readers built behind `universal-import` and `import-*` | AB-53, AB-54 |
 | `docs/plans/CHROME_EXTENSION.md`                               | Web tours and Focus FS1-9, FS12 built                                                                             | AB-45        |
-| `docs/plans/GRADEBOOK.md`                                      | Phases 1-6 built behind admin flags                                                                               | AB-4, AB-21  |
+| `docs/plans/GRADEBOOK.md`                                      | Phases 1-6 built behind admin flags                                                                               | AB-4         |
 | `docs/plans/QUIZ_ROSTER_GRADING_AND_REOPEN.md`                 | Approved, unbuilt                                                                                                 | AB-39        |
 | `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`                    | Unbuilt                                                                                                           | AB-40        |
 | `docs/plans/QUIZ_WIDGET_STRUCTURE.md`                          | S1, S6 built; S2, S3 partly                                                                                       | AB-311       |
