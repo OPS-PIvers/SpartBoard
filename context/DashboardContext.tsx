@@ -1047,6 +1047,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     collectionKey: string;
   } | null>(null);
   const navigationDebounceRef = useRef<number | null>(null);
+  const navigationFlushRef = useRef<(() => void) | null>(null);
   // Drop any pending navigation-memory write on provider unmount so a
   // dangling timer can't fire after the AuthContext has cleared `user`.
   // The user lands on the second-to-last Board on next session in the
@@ -1058,6 +1059,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(navigationDebounceRef.current);
         navigationDebounceRef.current = null;
       }
+      navigationFlushRef.current = null;
+    };
+  }, []);
+  // Send a pending navigation-memory write when the tab is closed or hidden.
+  useEffect(() => {
+    const flush = () => {
+      if (navigationDebounceRef.current === null) return;
+      clearTimeout(navigationDebounceRef.current);
+      navigationFlushRef.current?.();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -7019,8 +7038,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       const uid = user.uid;
       const collectionId = target.collectionId ?? null;
-      navigationDebounceRef.current = window.setTimeout(() => {
+      const writeNavigation = () => {
         navigationDebounceRef.current = null;
+        navigationFlushRef.current = null;
         const profileRef = doc(db, 'users', uid, 'userProfile', 'profile');
         // Use the nested-object form rather than a dot-notated key
         // (`lastBoardIdByCollection.${collectionKey}: id`). `setDoc` with
@@ -7046,7 +7066,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             });
           }
         );
-      }, 500);
+      };
+      navigationFlushRef.current = writeNavigation;
+      navigationDebounceRef.current = window.setTimeout(writeNavigation, 500);
     },
     [addToast, updateActiveId, user, profileLoaded]
   );
