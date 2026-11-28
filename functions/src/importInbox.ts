@@ -544,6 +544,14 @@ export async function checkImporter(
   return { email, uid, enabled: await deps.allowed(email, uid) };
 }
 
+export interface ReaderFailureLog {
+  uid: string;
+  platform: string;
+  reason: string;
+  url: string;
+  createdAt: number;
+}
+
 export interface ImportStore {
   blockPatterns: () => Promise<string[]>;
   /** Stores the page unless the teacher already has `cap` other waiting pages; false when full. */
@@ -555,7 +563,7 @@ export interface ImportStore {
     cap: number,
     now: number
   ) => Promise<boolean>;
-  logFailure: (doc: object, expireAt: number) => Promise<void>;
+  logFailure: (doc: ReaderFailureLog, expireAt: number) => Promise<void>;
 }
 
 export async function importStatus(
