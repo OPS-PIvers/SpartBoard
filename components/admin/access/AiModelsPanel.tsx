@@ -87,8 +87,9 @@ const LimitField: React.FC<{
         onChange(e.target.value === '' ? undefined : Number(e.target.value))
       }
       onBlur={() => {
-        if (value !== undefined)
-          onChange(Math.min(max, Math.max(min, Math.round(value))));
+        if (value === undefined) return;
+        const clamped = Math.min(max, Math.max(min, Math.round(value)));
+        if (clamped !== value) onChange(clamped);
       }}
       {...anchor}
       className={LIMIT_FIELD}
