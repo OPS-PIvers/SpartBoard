@@ -95,8 +95,35 @@ export function sessionOptionsToSessionPatch(
   )
     patch.timeLimitMinutes = deleteField();
   if (clearRemoved) {
-    for (const key of ['tabWarningThreshold', 'tabAwayLimitSeconds'] as const)
-      if (key in o && o[key] == null) patch[key] = deleteField();
+    const mirrored: Array<[keyof QuizSessionOptions, boolean]> = [
+      ['tabWarningsEnabled', true],
+      ['tabWarningThreshold', true],
+      ['tabAwayLimitSeconds', true],
+      ['tabAwayAutoSubmit', true],
+      ['blockCopyPaste', true],
+      ['allowStimulusQuotes', gates.stimulusQuotesOn],
+      ['showResultToStudent', true],
+      ['showCorrectAnswerToStudent', true],
+      ['showCorrectOnBoard', true],
+      ['showLearningTargets', true],
+      ['showExplanations', true],
+      ['speedBonusEnabled', true],
+      ['streakBonusEnabled', true],
+      ['showPodiumBetweenQuestions', true],
+      ['soundEffectsEnabled', true],
+      ['shuffleQuestions', true],
+      ['shuffleAnswerOptions', true],
+      ['readAloudAll', true],
+      ['showScoreOnSubmit', gates.scoreOnSubmitOn],
+    ];
+    for (const [key, gateOn] of mirrored)
+      if (gateOn && key in o && o[key] == null) patch[key] = deleteField();
+    if (
+      gates.pageProtectionsOn &&
+      'blockCopyPaste' in o &&
+      o.blockCopyPaste == null
+    )
+      patch.blockPrint = deleteField();
   }
   // `handRaiseEnabled` is deliberately NOT mirrored: it is resolved against the
   // admin gate at create time only, so a later patch (e.g. a PLC sync) can't

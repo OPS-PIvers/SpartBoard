@@ -6,6 +6,7 @@ import { collection, doc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { createElement } from 'react';
 import { AuthContext } from '@/context/AuthContextValue';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { sessionOptionsToSessionPatch } from '@/hooks/quizAssignments/sessionPatch';
 
 const setAssignmentTargets = vi.fn();
 
@@ -142,6 +143,31 @@ describe('useQuizAssignments.updateAssignmentSettings — live session mirror', 
     });
   });
 
+  it('clears every removed option key on the session doc too', async () => {
+    const { result } = renderHook(() => useQuizAssignments('teacher-1'));
+    await waitFor(() => expect(result.current.assignments).toHaveLength(1));
+    await act(async () => {
+      await result.current.updateAssignmentSettings('a-1', {
+        sessionOptionEdits: {
+          shuffleQuestions: undefined,
+          showExplanations: undefined,
+          tabWarningsEnabled: undefined,
+        },
+      });
+    });
+    const sessionPatch = batchUpdate.mock.calls.find(
+      ([ref]) => ref === 'quiz_sessions/a-1'
+    )?.[1] as Record<string, unknown>;
+    const cleared = { __deleteFieldSentinel: true };
+    expect(sessionPatch).toEqual(
+      expect.objectContaining({
+        shuffleQuestions: cleared,
+        showExplanations: cleared,
+        tabWarningsEnabled: cleared,
+      })
+    );
+  });
+
   it('clears the session time limit when the limit is turned off', async () => {
     const { result } = renderHook(() => useQuizAssignments('teacher-1'), {
       wrapper: timeLimitWrapper,
@@ -185,5 +211,37 @@ describe('useQuizAssignments.updateAssignmentSettings — live session mirror', 
     );
     expect(sessionPatch).not.toHaveProperty('showResultToStudent');
     expect(sessionPatch).not.toHaveProperty('tabWarningsEnabled');
+  });
+});
+
+describe('sessionOptionsToSessionPatch — gated keys removed on edit', () => {
+  const gates = (on: boolean) => ({
+    timeLimitOn: on,
+    scoreOnSubmitOn: on,
+    stimulusQuotesOn: on,
+    pageProtectionsOn: on,
+    reviewGame: true,
+  });
+  const removed = {
+    blockCopyPaste: undefined,
+    allowStimulusQuotes: undefined,
+    showScoreOnSubmit: undefined,
+  };
+  const cleared = { __deleteFieldSentinel: true };
+
+  it.each(['blockPrint', 'allowStimulusQuotes', 'showScoreOnSubmit'])(
+    'clears %s when its gate is on',
+    (key) => {
+      expect(
+        sessionOptionsToSessionPatch(removed, gates(true), true)[key]
+      ).toEqual(cleared);
+    }
+  );
+
+  it('leaves gated keys alone when their gates are off', () => {
+    const patch = sessionOptionsToSessionPatch(removed, gates(false), true);
+    expect(patch).not.toHaveProperty('blockPrint');
+    expect(patch).not.toHaveProperty('allowStimulusQuotes');
+    expect(patch).not.toHaveProperty('showScoreOnSubmit');
   });
 });
