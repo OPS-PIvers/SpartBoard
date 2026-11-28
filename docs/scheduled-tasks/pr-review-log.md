@@ -5228,3 +5228,13 @@ rather than "no data") is also still open.
   - Ready: #6827, #6830, #6831, #6833.
   - Ready with minor notes: #6832 (a numeric-string default or saved value now displays as `0`, where `String(value)` used to show it), #6834 (the backlog lists the Countdown grid loop as both fixed and still open).
 - Notes: Nothing was changed, so I didn't run lint, type-check or tests locally.
+
+## 2026-11-28
+
+- PRs reviewed: #6865 (docs(unifier): run 160), #6868 (fix(admin): AI limit field no-op blur), #6869 (fix(assignments-hub): stale save/close after row switch), #6870 (fix: flush navigation-memory write on pagehide/hidden), #6871 (fix: paginate ClassLink class student fetch), #6872 (docs: nightly debugger log).
+- Comments processed: 2 in total, 0 fixed, 0 replied to. The only comments were two `claude[bot]` reviews (#6868, #6871) that found no issues, so neither needed a fix or a reply. There were no inline review comments.
+- Fixes pushed: none.
+- Reviews posted: 6
+  - Ready: #6865, #6868, #6869, #6871.
+  - Ready with minor notes: #6870 (the new test copies about 200 lines of mocks from the bringToFront test), #6872 (no trailing newline, and two 2026-11-27 backlog rows are now fixed by #6869 and #6871).
+- Notes: The first review on #6865 posted even though the API returned a 422, so the retry made a duplicate. Submitted reviews can't be deleted, so I edited the duplicate to say it's a duplicate. Nothing was changed, so I didn't run lint, type-check or tests locally.
