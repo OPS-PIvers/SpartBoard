@@ -24,10 +24,7 @@ import {
 import { clampSpeakAttempts } from '@/config/flashcardsSpeakAdmin';
 import { buildSpeakStamp } from '../utils/flashcardAssign';
 import { tokenizeIpa } from '@/utils/pronunciation/tokenizeIpa';
-import {
-  SPEAK_G2P_VERSION,
-  SPEAK_G2P_VOICES_PENDING,
-} from '@/utils/pronunciation/g2pVersion';
+import { SPEAK_G2P_VERSION } from '@/utils/pronunciation/g2pVersion';
 
 /** Unsaved IPA per card id, tied to the term it was typed for. */
 export type SpeakIpaDrafts = Record<
@@ -208,6 +205,30 @@ export const refsFitDialects = (
         // A language has at most two accents, so a recorded failure explains the missing one.
         (speak.reasons ?? []).some((r) => NO_REF_REASONS.includes(r))));
 
+let servedG2pVersion = '';
+
+/** Remembers the engine version the lookup function reports, which can trail this client's after a deploy. */
+export const noteServedG2pVersion = (version: string) => {
+  if (version) servedG2pVersion = version;
+};
+
+/** Test-only: forgets the served engine version. */
+export const resetServedG2pVersion = () => {
+  servedG2pVersion = '';
+};
+
+/** The version is this client's engine or the one the function reports, with or without the voices-pending suffix. */
+export const speakVersionMatches = (
+  version: string,
+  pending: boolean
+): boolean => {
+  const suffix = pending ? '/pending' : '';
+  return (
+    version === `${SPEAK_G2P_VERSION}${suffix}` ||
+    (!!servedG2pVersion && version === `${servedG2pVersion}${suffix}`)
+  );
+};
+
 /** A card needs a lookup when its term, accents, IPA or the engine changed, or the last lookup failed. */
 export function cardNeedsLookup(
   card: FlashcardCard,
@@ -219,9 +240,9 @@ export function cardNeedsLookup(
   if (speak.reasons?.includes('lookup-failed')) return true;
   // A card waiting on voices is current; the background fill adds them.
   if (
-    speak.g2pVersion !== SPEAK_G2P_VERSION &&
+    !speakVersionMatches(speak.g2pVersion, false) &&
     !(
-      speak.g2pVersion === SPEAK_G2P_VOICES_PENDING &&
+      speakVersionMatches(speak.g2pVersion, true) &&
       Array.isArray(speak.dialects)
     )
   )

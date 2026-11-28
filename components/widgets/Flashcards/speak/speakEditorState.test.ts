@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { FlashcardCard, FlashcardSpeakSettings } from '@/types';
 import {
   applySpeakPreset,
   cardNeedsLookup,
   ipaOverrideValid,
   keepSpeakConfirmation,
+  noteServedG2pVersion,
+  resetServedG2pVersion,
   setSpeakGroup,
   setSpeakStrict,
 } from './speakEditorState';
@@ -34,6 +36,8 @@ const card = (over: Partial<FlashcardCard> = {}): FlashcardCard => ({
   speak: readySpeak(),
   ...over,
 });
+
+afterEach(resetServedG2pVersion);
 
 describe('speakEditorState', () => {
   it('fills every group from a preset', () => {
@@ -200,5 +204,33 @@ describe('speakEditorState', () => {
     expect(ipaOverrideValid('')).toBe(true);
     expect(ipaOverrideValid('/ˈo.la/')).toBe(true);
     expect(ipaOverrideValid('#')).toBe(false);
+  });
+});
+
+describe('cardNeedsLookup when functions trail hosting', () => {
+  it('treats a card saved at the version the function reports as current', () => {
+    const behind = card({
+      speak: { ...readySpeak(), g2pVersion: 'older-engine-v1' },
+    });
+    expect(cardNeedsLookup(behind, ['es-419'], {})).toBe(true);
+    noteServedG2pVersion('older-engine-v1');
+    expect(cardNeedsLookup(behind, ['es-419'], {})).toBe(false);
+    const other = card({ speak: { ...readySpeak(), g2pVersion: 'other' } });
+    expect(cardNeedsLookup(other, ['es-419'], {})).toBe(true);
+  });
+});
+
+describe('cardNeedsLookup with a pending card from a trailing function', () => {
+  it('is not stale once the served version is noted', () => {
+    const waiting = card({
+      speak: {
+        ...readySpeak(),
+        g2pVersion: 'v-old/pending',
+        dialects: ['es-419'],
+      },
+    });
+    expect(cardNeedsLookup(waiting, ['es-419'], {})).toBe(true);
+    noteServedG2pVersion('v-old');
+    expect(cardNeedsLookup(waiting, ['es-419'], {})).toBe(false);
   });
 });
