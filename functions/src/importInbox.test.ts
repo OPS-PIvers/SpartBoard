@@ -565,6 +565,43 @@ describe('receiveSend', () => {
     ]);
   });
 
+  it('drops a picture whose address carries credentials and keeps the send', () => {
+    const parsed = parseSendRequest(
+      body({
+        images: [
+          { url: 'https://u:p@cdn.example.org/a.png' },
+          { url: 'https://cdn.example.org/b.png' },
+        ],
+      })
+    );
+    expect(parsed.images).toEqual([{ url: 'https://cdn.example.org/b.png' }]);
+  });
+
+  it('writes one failure row per teacher, platform and hour', async () => {
+    const ids: string[] = [];
+    const db = {
+      collection: () => ({
+        doc: (id: string) => {
+          ids.push(id);
+          return { set: () => Promise.resolve() };
+        },
+      }),
+    };
+    const store = defaultStore(db as never);
+    const row = (createdAt: number) => ({
+      uid: 'u1',
+      platform: 'schoology',
+      reason: 'x',
+      url: 'https://a.example/',
+      createdAt,
+    });
+    await store.logFailure(row(10), 99);
+    await store.logFailure(row(20), 99);
+    await store.logFailure(row(3_700_000), 99);
+    expect(ids[0]).toBe(ids[1]);
+    expect(ids[2]).not.toBe(ids[0]);
+  });
+
   it('still stores the Send when the failure log fails', async () => {
     const { s, writes } = store({
       logFailure: () => Promise.reject(new Error('down')),

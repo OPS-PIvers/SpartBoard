@@ -212,6 +212,65 @@ describe('response parsing', () => {
     expect(out.cards[0]).toEqual({ term: 'Dup', definition: 'one' });
   });
 
+  it('drops flashcards and columns that carry a real link', () => {
+    const out = parseFlashcardsResponse(
+      JSON.stringify({
+        cards: [
+          { term: 'Cell', definition: 'See https://evil.com/x' },
+          { term: 'www.evil.org', definition: 'x' },
+          { term: 'Atom', definition: 'The smallest unit' },
+        ],
+      }),
+      SOURCE
+    );
+    expect(out.cards).toEqual([
+      { term: 'Atom', definition: 'The smallest unit' },
+    ]);
+    const wall = parseActivityWallResponse(
+      JSON.stringify({
+        prompt: 'Sort these',
+        layout: 'columns',
+        columns: ['Solid', 'evil.com', 'Liquid'],
+      }),
+      SOURCE
+    );
+    expect(wall.columns).toEqual(['Solid', 'Liquid']);
+  });
+
+  it('keeps ordinary prose that only looks like a link', () => {
+    const terms = [
+      ['Data', 'Data: facts collected'],
+      ['Node.js', 'Runs console.log and serves index.html'],
+      ['Capital', 'St.Paul, e.g. in the U.S.A.'],
+    ];
+    const out = parseFlashcardsResponse(
+      JSON.stringify({
+        cards: terms.map(([term, definition]) => ({ term, definition })),
+      }),
+      SOURCE
+    );
+    expect(out.cards).toHaveLength(3);
+    const wall = parseActivityWallResponse(
+      JSON.stringify({ prompt: 'Look at the data: what pattern do you see?' }),
+      SOURCE
+    );
+    expect(wall.prompt).toBe('Look at the data: what pattern do you see?');
+  });
+
+  it('strips link text from a wall prompt instead of failing', () => {
+    const wall = parseActivityWallResponse(
+      JSON.stringify({ prompt: 'Discuss this https://evil.com/x today' }),
+      SOURCE
+    );
+    expect(wall.prompt).toBe('Discuss this today');
+    expect(() =>
+      parseActivityWallResponse(
+        JSON.stringify({ prompt: 'www.evil.com' }),
+        SOURCE
+      )
+    ).toThrow(/No discussion prompt/);
+  });
+
   it('fails when no card is usable', () => {
     expect(() =>
       parseFlashcardsResponse(JSON.stringify({ cards: [] }), SOURCE)

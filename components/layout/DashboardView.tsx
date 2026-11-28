@@ -101,7 +101,6 @@ import {
   UNIVERSAL_IMPORT_FEATURE,
   type ImportTarget,
 } from '@/utils/import/contract';
-import { ImportScreenHost } from '@/components/import/ImportScreenHost';
 import {
   importSourceKind,
   importTypeOn,
@@ -145,6 +144,12 @@ const Dock = React.lazy(() =>
 const WebTourEditorHost = React.lazy(() =>
   import('@/components/tours/web/WebTourEditorHost').then((m) => ({
     default: m.WebTourEditorHost,
+  }))
+);
+// Import is admin-previewed, so its screens stay out of the main chunk until the flag is on.
+const ImportScreenHost = React.lazy(() =>
+  import('@/components/import/ImportScreenHost').then((m) => ({
+    default: m.ImportScreenHost,
   }))
 );
 const BoardMenuHost = React.lazy(() =>
@@ -1902,11 +1907,15 @@ export const DashboardView: React.FC = () => {
         canAccessFeature('group-schedules') && <GroupReminderHost />}
       {canAccessFeature('schoology-quiz-import') && <SchoologyReviewHost />}
       {universalImport && (
-        <ImportScreenHost
-          placeAt={placeAt}
-          placePdf={placePdf}
-          placeNotebook={placeNotebook}
-        />
+        <LazyChunkErrorBoundary>
+          <React.Suspense fallback={null}>
+            <ImportScreenHost
+              placeAt={placeAt}
+              placePdf={placePdf}
+              placeNotebook={placeNotebook}
+            />
+          </React.Suspense>
+        </LazyChunkErrorBoundary>
       )}
       <ShareStatusBanner />
       <ImportShareModePicker />
