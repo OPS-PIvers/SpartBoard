@@ -5,6 +5,7 @@ import {
   cardNeedsLookup,
   ipaOverrideValid,
   keepSpeakConfirmation,
+  noteServedG2pVersion,
   setSpeakGroup,
   setSpeakStrict,
 } from './speakEditorState';
@@ -200,5 +201,18 @@ describe('speakEditorState', () => {
     expect(ipaOverrideValid('')).toBe(true);
     expect(ipaOverrideValid('/ˈo.la/')).toBe(true);
     expect(ipaOverrideValid('#')).toBe(false);
+  });
+});
+
+describe('cardNeedsLookup when functions trail hosting', () => {
+  it('treats a card saved at the version the function reports as current', () => {
+    const behind = card({
+      speak: { ...readySpeak(), g2pVersion: 'older-engine-v1' },
+    });
+    expect(cardNeedsLookup(behind, ['es-419'], {})).toBe(true);
+    noteServedG2pVersion('older-engine-v1');
+    expect(cardNeedsLookup(behind, ['es-419'], {})).toBe(false);
+    const other = card({ speak: { ...readySpeak(), g2pVersion: 'other' } });
+    expect(cardNeedsLookup(other, ['es-419'], {})).toBe(true);
   });
 });

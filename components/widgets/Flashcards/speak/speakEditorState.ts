@@ -208,6 +208,13 @@ export const refsFitDialects = (
         // A language has at most two accents, so a recorded failure explains the missing one.
         (speak.reasons ?? []).some((r) => NO_REF_REASONS.includes(r))));
 
+let servedG2pVersion = '';
+
+/** Remembers the engine version the lookup function reports, which can trail this client's after a deploy. */
+export const noteServedG2pVersion = (version: string) => {
+  if (version) servedG2pVersion = version;
+};
+
 /** A card needs a lookup when its term, accents, IPA or the engine changed, or the last lookup failed. */
 export function cardNeedsLookup(
   card: FlashcardCard,
@@ -220,6 +227,7 @@ export function cardNeedsLookup(
   // A card waiting on voices is current; the background fill adds them.
   if (
     speak.g2pVersion !== SPEAK_G2P_VERSION &&
+    (!servedG2pVersion || speak.g2pVersion !== servedG2pVersion) &&
     !(
       speak.g2pVersion === SPEAK_G2P_VOICES_PENDING &&
       Array.isArray(speak.dialects)

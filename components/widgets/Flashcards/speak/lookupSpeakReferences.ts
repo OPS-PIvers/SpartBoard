@@ -9,6 +9,7 @@ import type {
 } from '@/types';
 import {
   cardNeedsLookup,
+  noteServedG2pVersion,
   effectiveIpaOverride,
   keepSpeakConfirmation,
   lookupFailedSpeak,
@@ -113,6 +114,7 @@ export async function attachSpeakReferences(
     });
     found = out.cards;
     g2pVersion = out.g2pVersion;
+    noteServedG2pVersion(g2pVersion);
   } catch (err) {
     logError('attachSpeakReferences', err);
   }
