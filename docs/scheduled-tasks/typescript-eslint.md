@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-27_
+_Last audited: 2026-11-28_
 _Last action: never_
+
+_2026-11-28: Daily audit (Saturday), run against an `origin/dev-paul` worktree (`d12b625ed`) with root and `functions/` node_modules symlinked in. `pnpm type-check` exit 0 (root and functions). App lint (`scripts/lintApp.mjs`, max-warnings 0) exit 0 after a long run; functions and extension lint were not run this cycle. 0 new issues._
 
 _2026-11-27: Daily audit (Friday). `pnpm type-check` exit 0; `pnpm lint` (app, functions, extension) exit 0 with `--max-warnings 0`. 0 new issues._
 

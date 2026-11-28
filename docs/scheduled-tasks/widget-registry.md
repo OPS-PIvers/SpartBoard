@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-11-27_
+_Last audited: 2026-11-28_
 _Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
+
+_2026-11-28: Daily audit (Saturday), run against a `origin/dev-paul` worktree (`d12b625ed`) because rebasing `scheduled-tasks` replays ~8.6k commits and merging conflicts in `utils/rubricPoints.ts`. `WidgetType` 71; `WIDGET_COMPONENTS` 70/71 (only `sticker`, documented); `WIDGET_SETTINGS_COMPONENTS` 68/71 (`sticker`, `blooms-detail`, `onboarding`, documented); `WIDGET_DEFAULTS` 71/71, 0 orphans; `tools.ts` gaps are the 7 documented exclusions, extras `magic`/`record`/`remote` are InternalToolType; `WIDGET_GRADE_LEVELS` covers all 71 plus the 3 internal tools. 68 `lazyNamed()` calls checked against target exports with a simple name search, with 0 real mismatches (PollWidget resolves through its `index.ts`; Catalyst `@/` paths skipped, and type-check passes). 0 new issues; open items unchanged._
 
 _2026-11-27: Daily audit (Friday), after merging `origin/dev-paul` (rebase conflicts on unrelated history, so merged). `WIDGET_COMPONENTS` covers every `WidgetType` except `sticker` (documented); `WIDGET_DEFAULTS` and `WIDGET_SCALING_CONFIG` are `Record<WidgetType,…>` so `pnpm type-check` (exit 0) enforces them; `widgetGradeLevels` has no gaps; `tools.ts` gaps are only the documented exclusions. 68 `lazyNamed()` calls resolve. 0 new issues._
 
