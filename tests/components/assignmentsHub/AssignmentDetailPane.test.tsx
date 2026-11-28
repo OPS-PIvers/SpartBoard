@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AssignmentDetailPane } from '@/components/assignmentsHub/AssignmentDetailPane';
 import { useAuth } from '@/context/useAuth';
@@ -207,6 +213,29 @@ describe('AssignmentDetailPane — D3 edit-in-place', () => {
     const addButton = screen.getByRole('button', { name: 'Add students' });
     fireEvent.click(addButton);
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+  });
+});
+
+describe('AssignmentDetailPane — row switch mid-save', () => {
+  it('does not close the new row editor or show stale state when the old save resolves', async () => {
+    let resolveSave: (v: { skipped: never[] }) => void = () => undefined;
+    mockSaveEdit.mockImplementation(
+      () => new Promise((r) => (resolveSave = r))
+    );
+    const { rerender } = render(<AssignmentDetailPane row={makeRow()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(mockSaveEdit).toHaveBeenCalledTimes(1));
+
+    rerender(<AssignmentDetailPane row={makeRow({ id: 'assign-2' })} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+
+    await act(async () => {
+      await Promise.resolve(resolveSave({ skipped: [] }));
+    });
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 });
 
