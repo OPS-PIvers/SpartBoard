@@ -1,10 +1,11 @@
 // Storage rules: the pre-redesign `activity_wall_photos/` prefix is read-only; nothing writes it any more.
+// The Storage emulator does not resolve firestore.get(), so the shared-gallery allow branch is pinned by source.
 //
 // Requires the Firestore and Storage emulators. Invoke via `pnpm run test:rules`.
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, describe, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertFails,
@@ -66,6 +67,7 @@ beforeAll(async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), `activity_wall_sessions/${SESSION_ID}`), {
       teacherUid: TEACHER_UID,
+      publiclyShared: false,
     });
   });
 });
@@ -79,6 +81,23 @@ describe('legacy activity_wall_photos objects', () => {
     const path = await seedPhoto();
     const st = testEnv.authenticatedContext(TEACHER_UID, google).storage();
     await assertSucceeds(getBytes(ref(st, path)));
+  });
+
+  it('a publicly shared wall lets any signed-in caller, anonymous included, read', () => {
+    const rules = readFileSync(STORAGE_RULES, 'utf8');
+    const from = rules.indexOf('match /activity_wall_photos/');
+    const block = rules.slice(from, rules.indexOf('\n    }', from));
+    expect(block).toMatch(/allow read: if request\.auth != null &&/);
+    expect(block).toContain(
+      "documents/activity_wall_sessions/$(sessionId)\n          ).data.get('publiclyShared', false) == true"
+    );
+    expect(block).not.toMatch(/sign_in_provider|studentRole/);
+  });
+
+  it('a non-owner cannot read a photo on a wall that is not shared', async () => {
+    const path = await seedPhoto();
+    const st = testEnv.authenticatedContext(STUDENT_UID, google).storage();
+    await assertFails(getBytes(ref(st, path)));
   });
 
   it('the owning teacher can no longer delete one', async () => {
