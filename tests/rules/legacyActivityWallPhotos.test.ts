@@ -37,7 +37,7 @@ const hostPort = (envValue: string | undefined, fallbackPort: number) => {
   };
 };
 
-const google = { firebase: { sign_in_provider: 'google.com' } };
+const google = { firebase: { sign_in_provider: 'google.com' as const } };
 
 // Unique object names: other Storage suites call clearStorage() in parallel.
 let seq = 0;
