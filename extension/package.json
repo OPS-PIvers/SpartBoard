@@ -2,7 +2,7 @@
   "name": "spartboard-extension",
   "description": "SpartBoard Chrome extension (docs/plans/CHROME_EXTENSION.md)",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.54",
   "type": "module",
   "packageManager": "pnpm@10.30.2",
   "engines": {
@@ -17,6 +17,6 @@
     "lint:fix": "node ../node_modules/eslint/bin/eslint.js . --fix"
   },
   "devDependencies": {
-    "@types/chrome": "0.3.8"
+    "@types/chrome": "0.3.9"
   }
 }
