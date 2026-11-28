@@ -14811,17 +14811,6 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
-  'sidebar.board-item': {
-    label: 'Board button in the menu boards list',
-    perField: true,
-    panel: true,
-    rows: true,
-    rowList: 'sidebar-board-item',
-  },
-  'sidebar.manage-boards': {
-    label: 'Manage all boards button in the menu',
-    panel: true,
-  },
   'sidebar.drive-refresh': {
     label: 'Refresh Google Drive button in the menu',
     panel: true,
