@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MagicLayoutModal } from '@/components/layout/dock/MagicLayoutModal';
 
 const generate = vi.hoisted(() => vi.fn());
@@ -17,7 +17,12 @@ vi.mock('@/context/useAuth', () => ({
     canAccessWidget: () => true,
   }),
 }));
-const outwardMock = vi.hoisted(() => ({
+interface OutwardMock {
+  locked: boolean;
+  active: boolean;
+  confirm?: () => Promise<boolean>;
+}
+const outwardMock = vi.hoisted((): { value: OutwardMock } => ({
   value: { locked: false, active: false },
 }));
 vi.mock('@/hooks/useViewAsOutward', () => ({
@@ -25,6 +30,10 @@ vi.mock('@/hooks/useViewAsOutward', () => ({
 }));
 
 describe('MagicLayoutModal Enter', () => {
+  afterEach(() => {
+    outwardMock.value = { locked: false, active: false };
+  });
+
   it('does not start a second generation while one is in flight', () => {
     generate.mockReturnValue(new Promise(() => undefined));
     render(<MagicLayoutModal onClose={vi.fn()} />);
@@ -50,7 +59,6 @@ describe('MagicLayoutModal Enter', () => {
     expect(confirm).toHaveBeenCalledTimes(1);
     accept(true);
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
-    outwardMock.value = { locked: false, active: false };
   });
 
   it('allows another try after a declined confirm', async () => {
@@ -66,6 +74,5 @@ describe('MagicLayoutModal Enter', () => {
     fireEvent.keyDown(box, { key: 'Enter' });
     await waitFor(() => expect(confirm).toHaveBeenCalledTimes(2));
     expect(generate).not.toHaveBeenCalled();
-    outwardMock.value = { locked: false, active: false };
   });
 });
