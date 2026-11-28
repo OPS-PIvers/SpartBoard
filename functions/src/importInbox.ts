@@ -212,6 +212,17 @@ const blockChars = (b: ImportBlock) =>
       )
     : b.text.length;
 
+// A picture whose address carries a sign-in is left out; it must not fail the whole send.
+function hasCredentials(v: unknown): boolean {
+  if (!isObj(v) || typeof v.url !== 'string') return false;
+  try {
+    const u = new URL(v.url);
+    return !!(u.username || u.password);
+  } catch {
+    return false;
+  }
+}
+
 function parseImage(v: unknown, i: number): ImportImage {
   const what = `image ${i + 1}`;
   if (!isObj(v)) throw malformed(what);
@@ -460,7 +471,7 @@ export function parseSendRequest(body: unknown): ImportSendRequest {
     platform: platformId(body.platform, 'platform'),
     selectionOnly: body.selectionOnly,
     blocks,
-    images: images.map(parseImage),
+    images: images.filter((v) => !hasCredentials(v)).map(parseImage),
     ...(readerFailure ? { readerFailure } : {}),
     ...(video ? { video } : {}),
     ...(cards ? { cards } : {}),
@@ -533,6 +544,14 @@ export async function checkImporter(
   return { email, uid, enabled: await deps.allowed(email, uid) };
 }
 
+export interface ReaderFailureLog {
+  uid: string;
+  platform: string;
+  reason: string;
+  url: string;
+  createdAt: number;
+}
+
 export interface ImportStore {
   blockPatterns: () => Promise<string[]>;
   /** Stores the page unless the teacher already has `cap` other waiting pages; false when full. */
@@ -544,7 +563,7 @@ export interface ImportStore {
     cap: number,
     now: number
   ) => Promise<boolean>;
-  logFailure: (doc: object, expireAt: number) => Promise<void>;
+  logFailure: (doc: ReaderFailureLog, expireAt: number) => Promise<void>;
 }
 
 export async function importStatus(
@@ -692,10 +711,15 @@ export function defaultStore(db: Firestore): ImportStore {
         return true;
       }),
     logFailure: async (doc, expireAt) => {
-      await db.collection(IMPORT_READER_FAILURES_COLLECTION).add({
-        ...doc,
-        expireAt: admin.firestore.Timestamp.fromMillis(expireAt),
-      });
+      // One row per teacher, platform and hour, so a stuck reader can't flood the log.
+      const id = `${doc.uid}_${doc.platform}_${Math.floor(doc.createdAt / 3_600_000)}`;
+      await db
+        .collection(IMPORT_READER_FAILURES_COLLECTION)
+        .doc(id)
+        .set({
+          ...doc,
+          expireAt: admin.firestore.Timestamp.fromMillis(expireAt),
+        });
     },
   };
 }

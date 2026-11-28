@@ -47,10 +47,10 @@ export async function pageToNotebookSvg(page: PageImage): Promise<string> {
   const href = await blobToDataUri(page.blob);
   const desc = page.text ? `<desc>${escapeXml(page.text)}</desc>` : '';
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+    `<svg xmlns="http://www.w3.org/2000/svg" ` +
     `width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
     `${desc}<g class="background"><image x="0" y="0" width="${width}" height="${height}" ` +
-    `href="${href}" xlink:href="${href}"/></g><g class="foreground"></g></svg>`
+    `href="${href}"/></g><g class="foreground"></g></svg>`
   );
 }
 

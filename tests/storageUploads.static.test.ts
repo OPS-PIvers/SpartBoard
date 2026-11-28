@@ -95,7 +95,6 @@ const WRITABLE_RULE_PATHS = [
   '/global_pdfs/{fileName}',
   '/web_tour_pictures/{setId}/{fileName}',
   // Student work and files a function processes.
-  '/activity_wall_photos/{sessionId}/{fileName}',
   '/activity_wall_media/{sessionId}/{submissionId}/{fileName}',
   '/quiz_response_media/{sessionId}/{responseKey}/{fileName}',
   '/paper_written_crops/{uid}/{scanId}/{seat}/{fileName}',

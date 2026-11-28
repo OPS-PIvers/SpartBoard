@@ -241,6 +241,7 @@ export function parseFlashcardsResponse(
     const definition = clean(card.definition, MAX_DEFINITION_CHARS);
     const key = term.toLowerCase();
     if (!term || !definition || seen.has(key)) continue;
+    if (TEXT_LINK.test(term) || TEXT_LINK.test(definition)) continue;
     seen.add(key);
     cards.push({ term, definition });
     if (cards.length >= MAX_FLASHCARDS) break;
@@ -259,7 +260,13 @@ export function parseActivityWallResponse(
   source: ConversionSource
 ): Omit<ActivityWallConversion, 'target'> {
   const parsed = parseGeminiJson<Record<string, unknown>>(text);
-  const prompt = clean(parsed.prompt, MAX_WALL_PROMPT_CHARS);
+  const prompt = clean(
+    clean(parsed.prompt, MAX_WALL_PROMPT_CHARS)
+      .split(/\s+/)
+      .filter((word) => !TEXT_LINK.test(word))
+      .join(' '),
+    MAX_WALL_PROMPT_CHARS
+  );
   if (!prompt) {
     throw new HttpsError(
       'failed-precondition',
@@ -271,7 +278,7 @@ export function parseActivityWallResponse(
     .map((c) => clean(c, MAX_WALL_COLUMN_CHARS))
     .filter((c) => {
       const key = c.toLowerCase();
-      if (!c || seen.has(key)) return false;
+      if (!c || seen.has(key) || TEXT_LINK.test(c)) return false;
       seen.add(key);
       return true;
     })
@@ -326,6 +333,10 @@ export const toPlainText = (raw: string): string =>
 // A scheme, a protocol-relative path, or a dotted host such as evil.example.
 const LINK_LIKE =
   /(?:\b(?:https?|ftp|file|data|javascript|vbscript|mailto|blob|tel|sms):|\/\/|www\.|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}\b)/i;
+
+// Ordinary prose: a scheme needs text right after its colon and a dotted host needs a real TLD, so "Data: facts", Node.js and St.Paul pass.
+const TEXT_LINK =
+  /(?:\b(?:https?|ftp|file|data|javascript|vbscript|mailto|blob|tel|sms):(?=\S)|\/\/|\bwww\.|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|edu|gov|io|co|us|info|biz|ly|me|app|dev|xyz|ru|cn|tk|top|site|online|link|click)\b)/i;
 
 const escapeHtml = (text: string): string =>
   text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

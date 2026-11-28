@@ -468,6 +468,33 @@ describe('fetchImportPage', () => {
     expect(d.fetched).toEqual(['https://example.org/a']);
   });
 
+  it('refuses a redirect to a non-default port', async () => {
+    const d = deps({
+      'https://example.org/a': {
+        status: 302,
+        location: 'https://example.org:8443/admin',
+        contentType: '',
+        body: '',
+      },
+    });
+    expect(await fetchImportPage('https://example.org/a', d)).toEqual({
+      status: 'use-extension',
+      reason: 'unreachable',
+    });
+    expect(d.fetched).toEqual(['https://example.org/a']);
+  });
+
+  it('rejects a pasted address with a port', async () => {
+    const d = deps({});
+    await expect(
+      fetchImportPage('https://example.org:6379/', d)
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    await expect(
+      fetchImportPage('http://example.org:8080/', d)
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(d.fetched).toEqual([]);
+  });
+
   it('rejects non-web schemes', async () => {
     await expect(
       fetchImportPage('file:///etc/passwd', deps({}))

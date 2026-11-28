@@ -1316,10 +1316,8 @@ describe('activity_wall_sessions/submissions — field-injection whitelist', () 
     );
   });
 
-  it("accepts the teacher's update on a doc carrying every field driveArchive.ts's Admin SDK write can leave behind", async () => {
-    // Pins the update whitelist as a superset of archiveActivityWallPhoto's
-    // success-path write shape (driveFileId/archivedAt/archiveStatus) — a
-    // future field added there without being added here fails this test.
+  it("accepts the teacher's update on a doc carrying every field the deleted archiveActivityWallPhoto callable left behind", async () => {
+    // Old docs still carry its write shape (driveFileId/archivedAt/archiveStatus).
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
         doc(ctx.firestore(), `${col}/${OPEN_SESSION}/submissions/sub-1`),

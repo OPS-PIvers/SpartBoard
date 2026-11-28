@@ -68,7 +68,6 @@
       "archiveActivityWallSubmissionOnCreate",
       "archiveActivityWallSubmissionOnUpdate",
       "sweepActivityWallArchives",
-      "archiveActivityWallPhoto",
       "fetchExternalProxy",
       "checkUrlCompatibility",
       "fetchLinkPreview",

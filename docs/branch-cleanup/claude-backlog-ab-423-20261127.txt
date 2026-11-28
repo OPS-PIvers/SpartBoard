@@ -1,0 +1,1 @@
+claude/backlog-ab-423-20261127 (AB-423: rubric peer refresh skips deleted sessions, session option mirror clears every removed key, rescore follows a partly failed earlier edit)

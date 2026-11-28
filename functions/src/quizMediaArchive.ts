@@ -9,7 +9,7 @@
  * `sweepStuckQuizArchives` sweep can pick it up, and so the student still sees
  * the question as not yet submitted.
  *
- * Modeled on `driveArchive.ts` (`archiveActivityWallPhoto`) for the Drive
+ * Modeled on the deleted `archiveActivityWallPhoto` callable for the Drive
  * folder/upload mechanics, with one deliberate difference: this callable mints
  * its own access token via `refreshGoogleAccessTokenForUid(teacherUid)` instead
  * of taking a client-supplied one, because archival must work with no teacher

@@ -114,7 +114,6 @@ const CALLABLE_MODES: Record<string, Mode> = {
   unlinkClassroomCourse: 'write',
   updatePaperTranscriptV1: 'write',
   // Outward actions (assign, share, invite, AI, export): unlocked and confirmed.
-  archiveActivityWallPhoto: 'outward',
   archiveQuizMediaArtifact: 'outward',
   assignToClassroomV1: 'outward',
   controlSubAssignmentV1: 'outward',

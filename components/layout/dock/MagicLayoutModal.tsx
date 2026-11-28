@@ -1,5 +1,5 @@
 import { isImeComposing } from '@/utils/imeComposing';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AI_PROMPT_TEXTAREA_CLASS } from '@/components/common/aiPanelStyles';
 import { GlassCard } from '@/components/common/GlassCard';
@@ -27,6 +27,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
   const { canAccessFeature, canAccessWidget } = useAuth();
   const [description, setDescription] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const inFlight = useRef(false);
   const [fileContext, setFileContext] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
@@ -35,11 +36,14 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
   };
 
   const handleGenerate = async () => {
-    if (!description.trim() || outward.locked || isGenerating) return;
-    if (outward.active && !(await outward.confirm('Generate with AI'))) return;
-
-    setIsGenerating(true);
+    if (!description.trim() || outward.locked || inFlight.current) return;
+    inFlight.current = true;
     try {
+      if (outward.active && !(await outward.confirm('Generate with AI'))) {
+        inFlight.current = false;
+        return;
+      }
+      setIsGenerating(true);
       const fullDescription = buildPromptWithFileContext(
         description,
         fileContext,
@@ -59,6 +63,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
         'error'
       );
     } finally {
+      inFlight.current = false;
       setIsGenerating(false);
     }
   };

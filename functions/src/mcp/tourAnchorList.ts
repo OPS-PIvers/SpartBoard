@@ -64558,38 +64558,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "sidebar.board-item",
-    "label": "Board button in the menu boards list",
-    "scope": "field",
-    "panel": true,
-    "row_wildcard": true,
-    "row_list": "sidebar-board-item",
-    "routes": [
-      {
-        "surface": "board.sidebar",
-        "kind": "sidebar",
-        "path": [
-          "sidebar.open-menu"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "sidebar.manage-boards",
-    "label": "Manage all boards button in the menu",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.sidebar",
-        "kind": "sidebar",
-        "path": [
-          "sidebar.open-menu"
-        ]
-      }
-    ]
-  },
-  {
     "id": "sidebar.drive-refresh",
     "label": "Refresh Google Drive button in the menu",
     "scope": "board",

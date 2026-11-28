@@ -2653,7 +2653,7 @@ export interface ActivityWallActivity {
    * signed in via ClassLink see the activity on their `/my-assignments`
    * page, and Firestore rules (`passesStudentClassGate`) enforce that
    * only students enrolled in this class can read the session doc.
-   * Empty/undefined preserves the classic code/PIN-style (`?data=`) flow.
+   * Empty/undefined means no class gate.
    */
   classId?: string;
 }
@@ -2685,7 +2685,7 @@ export interface ActivityWallLibraryEntry {
    * Phase 5A multi-class ClassLink targeting. When non-empty, mirrors the
    * session doc's `classIds` so students see this activity on their
    * `/my-assignments` page if enrolled in any of the listed classes.
-   * Empty / absent preserves the classic code/PIN (`?data=`) flow.
+   * Empty / absent means no class gate.
    */
   classIds?: string[];
   /**

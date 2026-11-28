@@ -222,17 +222,8 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    // Activity Wall Photos — students upload once (create only); teachers view via
-    // download URLs that include an unguessable download token managed by Firebase
-    // Storage (not a Firebase Auth token). These token-based URLs are not subject to
-    // these rules, so <img> display works without SDK read permission.
-    // SDK-level read/list is limited to the owning teacher and admins.
+    // Legacy Activity Wall photos (pre-redesign client): read-only so unarchived old posts still render.
     match /activity_wall_photos/{sessionId}/{fileName} {
-      // Owning teacher / admin can list/download via the SDK. Additionally,
-      // when the session has been published as a view-only gallery
-      // (`publiclyShared == true` on the parent session doc), any
-      // authenticated caller — including anonymous gallery viewers — can
-      // download a photo so the gallery page can render it.
       allow read: if request.auth != null &&
         (
           (sessionId.matches(request.auth.uid + '_.*') && notDeactivated()) ||
@@ -241,18 +232,6 @@ service firebase.storage {
             /databases/(default)/documents/activity_wall_sessions/$(sessionId)
           ).data.get('publiclyShared', false) == true
         );
-      // Any authenticated user (including anonymous students) may upload a new image,
-      // but only if the target session exists in Firestore (guards against DoS uploads
-      // to guessed sessionIds).
-      allow create: if request.auth != null && viewAsWriteOk() &&
-        request.resource.size < 10 * 1024 * 1024 &&
-        request.resource.contentType.matches('image/.*') &&
-        firestore.exists(
-          /databases/(default)/documents/activity_wall_sessions/$(sessionId)
-        );
-      // The owning teacher/admin may delete the temporary Firebase copy after Drive archival.
-      allow delete: if request.auth != null && viewAsWriteOk() &&
-        ((sessionId.matches(request.auth.uid + '_.*') && notDeactivated()) || isSiteAdmin());
     }
 
     // Activity Wall media (Padlet-lite) — transit buffer only. A server-side
@@ -331,7 +310,7 @@ service firebase.storage {
       // exactly what P1-5 writes (`{uid}__{n}` when capped, `{uid}__{random}`
       // otherwise) — the upload happens before the submission doc exists, so
       // a Firestore ownership lookup is not available at this point.
-      // No per-student object cap here (same limitation as activity_wall_photos):
+      // No per-student object cap here:
       // the Firestore submission cap is the enforcement point and the 7-day
       // sweeper reclaims orphaned objects.
       allow create: if request.auth != null && viewAsWriteOk() && pinScopeOk(sessionId) &&
