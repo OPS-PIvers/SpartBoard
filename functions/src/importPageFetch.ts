@@ -456,8 +456,10 @@ export async function fetchImportPage(
   }
   if (current.protocol !== 'https:' && current.protocol !== 'http:')
     throw new HttpsError('invalid-argument', 'Only web addresses are allowed.');
-  // Plain http is upgraded; the fetch itself is always https.
+  // Plain http is upgraded; the fetch itself is always https, on the default port only.
   if (current.protocol === 'http:') current.protocol = 'https:';
+  if (current.port !== '')
+    throw new HttpsError('invalid-argument', 'Only web addresses are allowed.');
   const deadline = Date.now() + TOTAL_FETCH_MS;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
@@ -495,7 +497,7 @@ export async function fetchImportPage(
       } catch {
         return { status: 'use-extension', reason: 'unreachable' };
       }
-      if (current.protocol !== 'https:')
+      if (current.protocol !== 'https:' || current.port !== '')
         return { status: 'use-extension', reason: 'unreachable' };
       continue;
     }

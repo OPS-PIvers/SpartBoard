@@ -20,6 +20,8 @@ describe('notebook slides import', () => {
     expect(svg).toContain('viewBox="0 0 1920 1080"');
     expect(svg).toContain('<desc>Cells &amp; &lt;tissues&gt;</desc>');
     expect(svg).toContain('href="data:image/webp;base64,');
+    expect(svg.match(/data:image\/webp/g)).toHaveLength(1);
+    expect(svg).not.toContain('xlink:href');
     expect(
       new DOMParser()
         .parseFromString(svg, 'image/svg+xml')

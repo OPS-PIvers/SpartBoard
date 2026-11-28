@@ -212,6 +212,37 @@ describe('response parsing', () => {
     expect(out.cards[0]).toEqual({ term: 'Dup', definition: 'one' });
   });
 
+  it('drops flashcards, wall prompts and columns that carry a link', () => {
+    const out = parseFlashcardsResponse(
+      JSON.stringify({
+        cards: [
+          { term: 'Cell', definition: 'See https://evil.example/x' },
+          { term: 'www.evil.example', definition: 'x' },
+          { term: 'Atom', definition: 'The smallest unit' },
+        ],
+      }),
+      SOURCE
+    );
+    expect(out.cards).toEqual([
+      { term: 'Atom', definition: 'The smallest unit' },
+    ]);
+    expect(() =>
+      parseActivityWallResponse(
+        JSON.stringify({ prompt: 'Go to evil.example now' }),
+        SOURCE
+      )
+    ).toThrow(/No discussion prompt/);
+    const wall = parseActivityWallResponse(
+      JSON.stringify({
+        prompt: 'Sort these',
+        layout: 'columns',
+        columns: ['Solid', 'evil.example', 'Liquid'],
+      }),
+      SOURCE
+    );
+    expect(wall.columns).toEqual(['Solid', 'Liquid']);
+  });
+
   it('fails when no card is usable', () => {
     expect(() =>
       parseFlashcardsResponse(JSON.stringify({ cards: [] }), SOURCE)

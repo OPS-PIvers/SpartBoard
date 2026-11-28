@@ -241,6 +241,7 @@ export function parseFlashcardsResponse(
     const definition = clean(card.definition, MAX_DEFINITION_CHARS);
     const key = term.toLowerCase();
     if (!term || !definition || seen.has(key)) continue;
+    if (LINK_LIKE.test(term) || LINK_LIKE.test(definition)) continue;
     seen.add(key);
     cards.push({ term, definition });
     if (cards.length >= MAX_FLASHCARDS) break;
@@ -260,7 +261,7 @@ export function parseActivityWallResponse(
 ): Omit<ActivityWallConversion, 'target'> {
   const parsed = parseGeminiJson<Record<string, unknown>>(text);
   const prompt = clean(parsed.prompt, MAX_WALL_PROMPT_CHARS);
-  if (!prompt) {
+  if (!prompt || LINK_LIKE.test(prompt)) {
     throw new HttpsError(
       'failed-precondition',
       'No discussion prompt could be found or written for this.'
@@ -271,7 +272,7 @@ export function parseActivityWallResponse(
     .map((c) => clean(c, MAX_WALL_COLUMN_CHARS))
     .filter((c) => {
       const key = c.toLowerCase();
-      if (!c || seen.has(key)) return false;
+      if (!c || seen.has(key) || LINK_LIKE.test(c)) return false;
       seen.add(key);
       return true;
     })
