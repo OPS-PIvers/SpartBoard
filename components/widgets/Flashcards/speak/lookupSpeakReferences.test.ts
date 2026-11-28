@@ -5,6 +5,7 @@ import {
   cardsNeedingLookup,
   type SpeakLookupCall,
 } from './lookupSpeakReferences';
+import { resetServedG2pVersion } from './speakEditorState';
 import { SPEAK_G2P_VERSION } from '@/utils/pronunciation/g2pVersion';
 
 const dropped = (id: string, definition = 'd'): FlashcardCard => ({
@@ -65,5 +66,38 @@ describe('attachSpeakReferences', () => {
     expect(call).toHaveBeenCalledWith(
       expect.objectContaining({ voices: false })
     );
+  });
+});
+
+describe('attachSpeakReferences against a trailing function', () => {
+  it('looks a card up once, not again on the next save', async () => {
+    resetServedG2pVersion();
+    const call = vi.fn<SpeakLookupCall>().mockImplementation(({ terms }) =>
+      Promise.resolve({
+        g2pVersion: 'v-old',
+        cards: Object.fromEntries(
+          terms.map((t) => [
+            t.cardId,
+            {
+              term: t.term,
+              refs: [{ dialect: 'es-419', tokens: ['p'], stress: [0] }],
+              g2pVersion: 'v-old/pending',
+              status: 'ready',
+              dialects: ['es-419'],
+            },
+          ])
+        ),
+      } as Awaited<ReturnType<SpeakLookupCall>>)
+    );
+    const first = await attachSpeakReferences(
+      [{ id: 'a', term: 'perro', definition: 'dog' }],
+      'es',
+      ['es-419'],
+      {},
+      call
+    );
+    await attachSpeakReferences(first, 'es', ['es-419'], {}, call);
+    expect(call).toHaveBeenCalledTimes(1);
+    resetServedG2pVersion();
   });
 });
