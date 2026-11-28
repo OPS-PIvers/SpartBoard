@@ -181,6 +181,23 @@ describe('AiModelsPanel', () => {
   });
 });
 
+describe('AiModelsPanel limit blur', () => {
+  it('does not mark a limit unsaved when blurred without a change', () => {
+    config = {
+      ...config,
+      integrationLimits: { quiz: { maxInputChars: 80_000 } },
+    };
+    updatePermission.mockClear();
+    render(<AiModelsPanel />);
+    fireEvent.blur(
+      screen.getByRole('spinbutton', {
+        name: 'Input limit for Quiz generation',
+      })
+    );
+    expect(updatePermission).not.toHaveBeenCalled();
+  });
+});
+
 describe('claudeCost', () => {
   it('prices Claude tokens and ignores Gemini', () => {
     expect(
